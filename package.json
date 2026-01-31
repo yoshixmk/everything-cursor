@@ -1,19 +1,65 @@
 {
   "name": "everything-cursor",
-  "version": "0.0.1",
-  "description": "Cursor settings created from affaan-m/everything-claude-code",
+  "version": "0.0.4",
+  "description": "Cursor settings created from affaan-m/everything-cursor",
   "type": "module",
-  "scripts": {
-    "cursor-install": "node scripts/cursor-install.mjs",
-    "cursor-uninstall": "node scripts/cursor-uninstall.mjs"
+  "exports": {
+    ".": {
+      "import": "./dist/mod.js",
+      "types": "./dist/mod.d.ts"
+    },
+    "./cli": {
+      "import": "./dist/cli.js",
+      "types": "./dist/cli.d.ts"
+    }
   },
+  "bin": {
+    "everything-cursor": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build",
+    "dev:install": "node scripts/cursor-install.mjs",
+    "dev:uninstall": "node scripts/cursor-uninstall.mjs"
+  },
+  "files": [
+    "dist/**/*.js",
+    "dist/**/*.d.ts",
+    "dist/**/*.d.ts.map",
+    "dist/**/*.js.map",
+    "scripts/*.mjs",
+    "everything-claude-code/agents/",
+    "everything-claude-code/skills/",
+    "everything-claude-code/commands/",
+    "everything-claude-code/rules/",
+    "LICENSE",
+    "README.md"
+  ],
   "keywords": [
     "cursor",
     "ide",
     "ai",
     "everything-claude-code",
-    "everything-cursor"
+    "everything-cursor",
+    "cursor-settings",
+    "ai-development"
   ],
   "author": "yoshixmk",
-  "license": "MIT"
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yoshixmk/everything-cursor.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yoshixmk/everything-cursor/issues"
+  },
+  "homepage": "https://github.com/yoshixmk/everything-cursor#readme",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "@types/deno": "^2.5.0",
+    "@types/node": "^18.0.0",
+    "typescript": "^5.7.0"
+  }
 }

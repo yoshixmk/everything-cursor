@@ -19,6 +19,7 @@ import crypto from "node:crypto";
 import os from "node:os";
 import readline from "node:readline";
 import { execSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 
 // ANSI color codes for terminal output
 const colors = {
@@ -44,8 +45,15 @@ const color = {
 };
 
 // Configuration
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 const REPO_ROOT = process.cwd();
-const SUBMODULE_PATH = path.join(REPO_ROOT, "everything-claude-code");
+
+// Determine if we're running from npm installation or source
+const isNpmInstall = __dirname.includes("node_modules");
+const PACKAGE_ROOT = isNpmInstall ? path.resolve(__dirname, "..") : REPO_ROOT;
+
+const SUBMODULE_PATH = path.join(PACKAGE_ROOT, "everything-claude-code");
 const CURSOR_DIR_LOCAL = path.join(REPO_ROOT, ".cursor");
 const CURSOR_DIR_HOME = path.join(os.homedir(), ".cursor");
 const MANIFEST_FILE = ".everything-cursor-manifest.json";
@@ -96,15 +104,15 @@ async function installWithPreservation() {
   let selectedLocation;
 
   if (manifest && manifest.selectedLocation) {
-    // 既存のマニフェストから選択を復元
+    // Restore selection from existing manifest
     selectedLocation = manifest.selectedLocation;
     console.log(color.blue(`Using saved location: ${selectedLocation}`));
   } else {
-    // 初回実行: ユーザーに選択を促す
+    // First run: prompt user for selection
     selectedLocation = await promptInstallLocation();
   }
 
-  // インストールディレクトリ決定
+  // Determine installation directory
   const installDir = getInstallDir(selectedLocation);
   const manifestPath = getManifestPath(selectedLocation);
 
@@ -190,7 +198,7 @@ async function installWithPreservation() {
 
         // Add to manifest
         newManifest.files[manifestKey] = {
-          source: path.relative(REPO_ROOT, file),
+          source: path.relative(PACKAGE_ROOT, file),
           installedAt: new Date().toISOString(),
           checksum: calculateChecksum(file),
         };
@@ -286,7 +294,7 @@ async function installWithPreservation() {
 function performRollback() {
   console.log(color.cyan("⟳ Rolling back to previous installation...\n"));
 
-  // バックアップマニフェスト読み込み（local優先、次にhome）
+  // Load backup manifest (local first, then home)
   let backupPath = path.join(CURSOR_DIR_LOCAL, MANIFEST_BACKUP_FILE);
   let installDir = CURSOR_DIR_LOCAL;
 
@@ -334,7 +342,7 @@ function performRollback() {
 
   // Restore files from backup manifest
   for (const [key, fileInfo] of Object.entries(backupManifest.files)) {
-    const srcPath = path.join(REPO_ROOT, fileInfo.source);
+    const srcPath = path.join(PACKAGE_ROOT, fileInfo.source);
     const destPath = path.join(installDir, key);
 
     if (fs.existsSync(srcPath)) {
@@ -359,6 +367,17 @@ function performRollback() {
  * @returns {Promise<"local" | "home">}
  */
 async function promptInstallLocation() {
+  // Check for environment variable (for programmatic usage)
+  const envLocation = process.env.CURSOR_INSTALL_LOCATION;
+  if (envLocation === "local" || envLocation === "home") {
+    console.log(
+      color.blue(
+        `📍 Using ${envLocation} installation (from environment variable)`,
+      ),
+    );
+    return envLocation;
+  }
+
   console.log(color.cyan("\n📍 Select installation location:"));
   console.log("  1) local  - Project local (.cursor/)");
   console.log("  2) home   - Home directory (~/.cursor/)");
@@ -387,7 +406,7 @@ async function promptInstallLocation() {
       break; // eslint-disable-line no-unreachable
     default:
       console.log(color.red("Invalid choice, please try again"));
-      return promptInstallLocation(); // 再帰的に再試行
+      return promptInstallLocation(); // Recursively retry
   }
 }
 
@@ -418,22 +437,30 @@ function getInstallDir(selectedLocation) {
 function validateSubmodule() {
   if (!fs.existsSync(SUBMODULE_PATH)) {
     console.error(color.red("✗ Submodule directory not found"));
-    console.error("  Please run: git submodule update --init");
+    if (isNpmInstall) {
+      console.error("  Package installation appears to be corrupted");
+      console.error("  Try reinstalling: npm install -g everything-cursor");
+    } else {
+      console.error("  Please run: git submodule update --init");
+    }
     process.exit(1);
   }
 
-  const gitDir = path.join(SUBMODULE_PATH, ".git");
-  if (!fs.existsSync(gitDir)) {
-    console.error(color.red("✗ Submodule is not a git repository"));
-    console.error("  Please run: git submodule update --init");
-    process.exit(1);
-  }
+  // Only check for .git directory when running from source (not npm install)
+  if (!isNpmInstall) {
+    const gitDir = path.join(SUBMODULE_PATH, ".git");
+    if (!fs.existsSync(gitDir)) {
+      console.error(color.red("✗ Submodule is not a git repository"));
+      console.error("  Please run: git submodule update --init");
+      process.exit(1);
+    }
 
-  // Ensure path is within project
-  const resolved = path.resolve(SUBMODULE_PATH);
-  const repoRoot = path.resolve(REPO_ROOT);
-  if (!resolved.startsWith(repoRoot)) {
-    throw new Error("Submodule path outside repository");
+    // Ensure path is within project (only for source installations)
+    const resolved = path.resolve(SUBMODULE_PATH);
+    const repoRoot = path.resolve(REPO_ROOT);
+    if (!resolved.startsWith(repoRoot)) {
+      throw new Error("Submodule path outside repository");
+    }
   }
 }
 
@@ -441,6 +468,18 @@ function validateSubmodule() {
  * Get git commit hash from submodule
  */
 function getGitHash() {
+  // For npm installations, use a static hash based on package version
+  if (isNpmInstall) {
+    // Read package.json to get version
+    const packageJsonPath = path.join(PACKAGE_ROOT, "package.json");
+    try {
+      const pkg = JSON.parse(fs.readFileSync(packageJsonPath, "utf-8"));
+      return `npm-${pkg.version}`;
+    } catch (_error) {
+      return "npm-unknown";
+    }
+  }
+
   try {
     const result = execSync(`git -C ${SUBMODULE_PATH} rev-parse HEAD`, {
       encoding: "utf-8",
@@ -459,6 +498,17 @@ function getGitHash() {
  * Get git tag from submodule (if available)
  */
 function getGitTag() {
+  // For npm installations, use package version
+  if (isNpmInstall) {
+    const packageJsonPath = path.join(PACKAGE_ROOT, "package.json");
+    try {
+      const pkg = JSON.parse(fs.readFileSync(packageJsonPath, "utf-8"));
+      return `v${pkg.version}`;
+    } catch (_error) {
+      return undefined;
+    }
+  }
+
   try {
     const result = execSync(
       `git -C ${SUBMODULE_PATH} describe --tags --exact-match 2>/dev/null || echo ""`,
@@ -534,7 +584,7 @@ function calculateChecksum(filePath) {
  * @returns {{manifest: object | null, manifestPath: string | null}}
  */
 function loadManifest() {
-  // まずローカルを確認
+  // Check local first
   let manifestPath = path.join(CURSOR_DIR_LOCAL, MANIFEST_FILE);
   if (fs.existsSync(manifestPath)) {
     const manifest = loadManifestFromPath(manifestPath);
@@ -543,7 +593,7 @@ function loadManifest() {
     }
   }
 
-  // 次にホームを確認
+  // Then check home
   manifestPath = path.join(CURSOR_DIR_HOME, MANIFEST_FILE);
   if (fs.existsSync(manifestPath)) {
     const manifest = loadManifestFromPath(manifestPath);
@@ -563,12 +613,12 @@ function loadManifestFromPath(manifestPath) {
     const content = fs.readFileSync(manifestPath, "utf-8");
     const manifest = JSON.parse(content);
 
-    // 基本構造の検証
+    // Validate basic structure
     if (!manifest.version || typeof manifest.files !== "object") {
       throw new Error("Invalid manifest structure");
     }
 
-    // selectedLocationフィールドの検証
+    // Validate selectedLocation field
     if (
       manifest.selectedLocation &&
       !["local", "home"].includes(manifest.selectedLocation)
@@ -578,7 +628,7 @@ function loadManifestFromPath(manifestPath) {
       );
     }
 
-    // Git hashの検証
+    // Validate git hash
     if (
       manifest.submoduleGitHash &&
       !/^[a-f0-9]{40}$/i.test(manifest.submoduleGitHash)

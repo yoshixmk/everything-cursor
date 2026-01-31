@@ -1,5 +1,63 @@
 # Installation Script Specification
 
+## Overview
+
+This document specifies the behavior and implementation of the installation
+scripts (`scripts/cursor-install.mjs` and `scripts/cursor-uninstall.mjs`) that
+manage Cursor settings from the everything-claude-code submodule.
+
+### Scope
+
+This specification focuses on the **internal behavior** of the installation
+scripts. For information about:
+
+- **Build process and npm distribution**: See [BUILD_SPEC.md](./BUILD_SPEC.md)
+- **Usage and API reference**: See [README.md](../README.md)
+
+### How to Run Installation Scripts
+
+The installation scripts can be invoked through multiple methods:
+
+1. **CLI Command** (via Deno):
+   ```bash
+   deno install -Agf jsr:@yoshixmk/everything-cursor/cli
+   everything-cursor install
+   everything-cursor uninstall
+   ```
+
+2. **CLI Command** (via npm/pnpm):
+   ```bash
+   # Global installation
+   npm install -g everything-cursor
+   pnpm add -g everything-cursor
+   everything-cursor install
+   
+   # One-time execution
+   npx everything-cursor install
+   pnpm dlx everything-cursor install
+   ```
+
+3. **Programmatic API**:
+   ```typescript
+   import { install, uninstall } from "@yoshixmk/everything-cursor";
+   await install({ location: "local" });
+   ```
+
+4. **Direct Script Execution** (from repository):
+   ```bash
+   node scripts/cursor-install.mjs
+   node scripts/cursor-uninstall.mjs
+   ```
+
+5. **npm Scripts** (for development):
+   ```bash
+   npm run dev:install
+   npm run dev:uninstall
+   ```
+
+All methods ultimately execute the same installation scripts described in this
+specification.
+
 ## Problem Statement
 
 Current implementation (`cursor-install.mjs`) completely removes existing
@@ -705,10 +763,20 @@ pnpm cursor-install  # Uses checked-out version
 
 ## Testing Scenarios
 
+**Note**: The following test scenarios use specific command examples (e.g.,
+`pnpm cursor-install`), but the same tests apply to all invocation methods:
+
+- CLI command (Deno): `everything-cursor install`
+- CLI command (npm): `npx everything-cursor install`
+- CLI command (pnpm): `pnpm dlx everything-cursor install`
+- Programmatic API: `await install({ location: "local" })`
+- Direct script: `node scripts/cursor-install.mjs`
+- npm script: `npm run dev:install`
+
 ### Test Case 1: Fresh Installation
 
 - **Given**: No `.cursor/` directory exists
-- **When**: Run `pnpm cursor-install`
+- **When**: Run installation script
 - **Then**:
   - All `.md` files from submodule copied to `.cursor/`
   - Manifest created with current git hash
@@ -1090,28 +1158,77 @@ See [Testing Scenarios](#testing-scenarios) for rollback test cases.
 
 ### Implemented Options
 
+The installation scripts support the following options:
+
+**Using CLI Command**:
+
 ```bash
 # Default: install with preservation and git hash tracking
-pnpm cursor-install
+everything-cursor install
 
 # Rollback to previous installation
-pnpm cursor-install --rollback
+everything-cursor install --rollback
+```
+
+**Using Programmatic API**:
+
+```typescript
+// Default installation
+await install({ location: "local" });
+
+// With options
+await install({
+  location: "home",
+  silent: true,
+  cwd: "/custom/path",
+});
+```
+
+**Using Direct Script Execution**:
+
+```bash
+# Default: install with preservation and git hash tracking
+node scripts/cursor-install.mjs
+
+# Rollback to previous installation
+node scripts/cursor-install.mjs --rollback
+```
+
+**Using npm Scripts** (for development):
+
+```bash
+npm run dev:install
+npm run dev:uninstall
 ```
 
 ### Future Enhancement Options
 
+These options are planned for future implementation:
+
 ```bash
 # Force clean installation (remove everything first)
-pnpm cursor-install --clean
+everything-cursor install --clean
 
 # Dry run (show what would change)
-pnpm cursor-install --dry-run
+everything-cursor install --dry-run
 
 # Verbose output (detailed file-by-file progress)
-pnpm cursor-install --verbose
+everything-cursor install --verbose
 
 # Force installation even if git hash unchanged
-pnpm cursor-install --force
+everything-cursor install --force
+```
+
+Or via programmatic API:
+
+```typescript
+await install({
+  location: "local",
+  clean: true, // Force clean installation
+  dryRun: true, // Dry run mode
+  verbose: true, // Verbose output
+  force: true, // Force even if unchanged
+});
 ```
 
 ### Option Details
@@ -1129,12 +1246,12 @@ Restores the previous installation using backup manifest.
 
 **Usage**: After a problematic update
 
-**Example**:
+**Example** (using CLI command):
 
 ```bash
-$ pnpm cursor-install
+$ everything-cursor install
 # ... installation completes but has issues ...
-$ pnpm cursor-install --rollback
+$ everything-cursor install --rollback
 ⟳ Rolling back to previous installation...
   Current: v1.2.3
   Rollback to: v1.2.2
@@ -1558,8 +1675,14 @@ The first manifest found is used.
 
 To change the installation location:
 
-1. Run `pnpm cursor-uninstall` to remove current installation
-2. Run `pnpm cursor-install` - the location prompt will appear again
+1. Uninstall current installation:
+   ```bash
+   everything-cursor uninstall
+   ```
+2. Install again - the location prompt will appear:
+   ```bash
+   everything-cursor install
+   ```
 3. Select the desired new location
 
 ### Use Cases
@@ -1578,10 +1701,16 @@ To change the installation location:
 
 ### Rollback Support
 
-The `--rollback` flag works with both locations:
+The rollback functionality works with both locations:
 
 ```bash
-pnpm cursor-install --rollback
+everything-cursor install --rollback
+```
+
+Or via programmatic API:
+
+```typescript
+await install({ rollback: true });
 ```
 
 The script automatically:

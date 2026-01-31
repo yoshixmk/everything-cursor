@@ -1,28 +1,69 @@
 # everything-cursor
 
+[![JSR](https://jsr.io/badges/@yoshixmk/everything-cursor)](https://jsr.io/@yoshixmk/everything-cursor)
+[![JSR Score](https://jsr.io/badges/@yoshixmk/everything-cursor/score)](https://jsr.io/@yoshixmk/everything-cursor)
+
 Cursor settings created from
 [affaan-m/everything-claude-code](https://github.com/affaan-m/everything-claude-code).
 
 ## Installation
 
-### 1. Clone this repository with submodules
+### Quick Start (Recommended)
+
+Choose your preferred package manager:
+
+**Deno** (Recommended):
+```bash
+# One-time execution
+deno x jsr:@yoshixmk/everything-cursor/cli install
+
+or
+
+# Global installation
+deno install -Agf jsr:@yoshixmk/everything-cursor/cli
+everything-cursor install
+```
+
+**npm**:
+```bash
+# One-time execution
+npx everything-cursor install
+
+or
+
+# Global installation
+npm install -g everything-cursor
+everything-cursor install
+```
+
+**pnpm**:
+```bash
+# One-time execution
+pnpm dlx everything-cursor install
+
+or
+
+# Global installation
+pnpm add -g everything-cursor
+everything-cursor install
+```
+
+The CLI will prompt you to choose between local (`.cursor/`) or home (`~/.cursor/`) installation.
+
+### Alternative: From Repository
+
+Clone the repository and run the installation script directly:
 
 ```bash
-git clone --recursive <repository-url>
+git clone https://github.com/yoshixmk/everything-cursor.git
 cd everything-cursor
+node scripts/cursor-install.mjs
 ```
 
-Or if already cloned:
+This method gives you full control and allows you to modify the settings before
+installation.
 
-```bash
-git submodule update --init
-```
-
-### 2. Install dependencies and Cursor settings
-
-```bash
-pnpm install
-```
+### Installation Details
 
 On **first run**, you'll be prompted to choose an installation location:
 
@@ -57,7 +98,13 @@ automatically preserved.
 To remove the installed Cursor settings:
 
 ```bash
-pnpm cursor-uninstall
+everything-cursor uninstall
+```
+
+Or from the repository:
+
+```bash
+node scripts/cursor-uninstall.mjs
 ```
 
 This will remove only the files that were installed from the submodule (tracked
@@ -65,6 +112,37 @@ in the manifest).
 
 **Your custom files are preserved**: User-created files in `.cursor/` are not
 removed during uninstallation.
+
+## For Developers: Programmatic Usage
+
+If you want to integrate everything-cursor into your own tools or automation scripts, you can use the library API.
+
+### Installation
+
+```bash
+# pnpm
+pnpm add everything-cursor
+
+# npm
+npm install everything-cursor
+
+# Deno
+import { install } from "jsr:@yoshixmk/everything-cursor";
+```
+
+### Basic Usage
+
+```typescript
+import { install, uninstall } from "@yoshixmk/everything-cursor";
+
+// Install to local .cursor directory
+await install({ location: "local" });
+
+// Uninstall
+await uninstall();
+```
+
+For detailed API documentation, see the [JSR package page](https://jsr.io/@yoshixmk/everything-cursor).
 
 ## Structure
 
@@ -107,7 +185,7 @@ echo "# My Custom Agent" > .cursor/agents/my-agent.md
 echo "# My Custom Agent" > ~/.cursor/agents/my-agent.md
 
 # This file will be preserved during updates
-pnpm cursor-install
+cursor-install
 ```
 
 **File Types**:
@@ -122,12 +200,12 @@ To change where the settings are installed:
 
 1. Uninstall current settings:
    ```bash
-   pnpm cursor-uninstall
+   cursor-uninstall
    ```
 
 2. Run install again to choose a new location:
    ```bash
-   pnpm cursor-install
+   cursor-install
    ```
 
 The installation prompt will appear again, allowing you to select a different
@@ -148,19 +226,21 @@ The installation script only manages `.md` files that come from the
 
 ### Update to Latest Version
 
-To update to the latest settings from everything-claude-code:
+To update to the latest version, simply reinstall:
 
 ```bash
-git submodule update --remote
-pnpm cursor-install
+deno install -Agf jsr:@yoshixmk/everything-cursor/cli
+everything-cursor install
 ```
+
+Note: The `-f` flag forces reinstallation even if already installed.
 
 **Smart Update Detection**: The installation script tracks the git commit hash
 of the submodule. If the submodule hasn't changed, the installation is
 automatically skipped.
 
 ```bash
-$ pnpm cursor-install
+$ everything-cursor install
 📦 Checking everything-cursor...
 ✓ Already up to date
   Submodule version: v1.2.3 (abc1234)
@@ -171,7 +251,7 @@ $ pnpm cursor-install
 If an update causes issues, you can easily rollback:
 
 ```bash
-pnpm cursor-install --rollback
+everything-cursor install --rollback
 ```
 
 This restores the previous installation state.
@@ -180,8 +260,96 @@ This restores the previous installation state.
 
 For detailed technical specifications and implementation details, see:
 
+- [`docs/BUILD_SPEC.md`](docs/BUILD_SPEC.md) - Build process and npm
+  distribution specification
 - [`docs/INSTALL_SPEC.md`](docs/INSTALL_SPEC.md) - Complete installation script
   specification
+
+## Development
+
+For developers who want to contribute or modify the code:
+
+### Install from source
+
+1. Clone this repository with submodules:
+
+```bash
+git clone --recursive https://github.com/yoshixmk/everything-cursor.git
+cd everything-cursor
+```
+
+Or if already cloned:
+
+```bash
+git submodule update --init
+```
+
+2. Install dependencies:
+
+```bash
+npm install
+# or: pnpm install
+```
+
+3. Test the installation locally:
+
+```bash
+npm run cursor-install
+```
+
+4. To uninstall:
+
+```bash
+npm run cursor-uninstall
+```
+
+## Publishing (For Maintainers)
+
+To publish a new version:
+
+### 1. Update version and submodule
+
+Update the version in `jsr.json`:
+
+```bash
+# Edit jsr.json to update version
+# Example: "version": "0.0.4"
+```
+
+Update the submodule to the latest version:
+
+```bash
+git submodule update --remote
+```
+
+### 2. Commit the changes
+
+```bash
+git add jsr.json everything-claude-code
+git commit -m "Bump version to 0.0.4"
+```
+
+### 3. Create and push a git tag
+
+```bash
+git tag v0.0.4
+git push origin v0.0.4
+```
+
+### 4. Publish to JSR
+
+```bash
+npx jsr publish
+```
+
+You will be prompted to authenticate in your browser.
+
+### Publishing Notes
+
+- Only `.md` files from `agents/`, `skills/`, `commands/`, and `rules/`
+  directories are included (per `INSTALL_SPEC.md` requirements)
+- Development files (`.sh`, `.py`, `.js`) and other non-Markdown files are
+  automatically excluded
 
 ## Features
 
