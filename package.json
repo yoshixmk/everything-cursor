@@ -1,17 +1,28 @@
 {
   "name": "everything-cursor",
   "version": "0.0.1",
-  "description": "Cursor settings created from affaan-m/everything-claude-code",
+  "description": "Cursor settings created from affaan-m/everything-cursor",
   "type": "module",
+  "exports": {
+    ".": {
+      "import": "./mod.ts",
+      "types": "./mod.ts"
+    },
+    "./cli": {
+      "import": "./cli.ts",
+      "types": "./cli.ts"
+    }
+  },
   "bin": {
-    "cursor-install": "./scripts/cursor-install.mjs",
-    "cursor-uninstall": "./scripts/cursor-uninstall.mjs"
+    "everything-cursor": "./cli.ts"
   },
   "scripts": {
-    "cursor-install": "node scripts/cursor-install.mjs",
-    "cursor-uninstall": "node scripts/cursor-uninstall.mjs"
+    "dev:install": "node scripts/cursor-install.mjs",
+    "dev:uninstall": "node scripts/cursor-uninstall.mjs"
   },
   "files": [
+    "mod.ts",
+    "cli.ts",
     "scripts/*.mjs",
     "everything-claude-code/agents/",
     "everything-claude-code/skills/",
@@ -41,5 +52,8 @@
   "homepage": "https://github.com/yoshixmk/everything-cursor#readme",
   "engines": {
     "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^18.0.0"
   }
 }

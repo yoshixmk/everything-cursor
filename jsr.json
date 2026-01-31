@@ -1,0 +1,25 @@
+{
+  "name": "@yoshixmk/everything-cursor",
+  "version": "0.0.1",
+  "license": "MIT",
+  "exports": {
+    ".": "./mod.ts",
+    "./cli": "./cli.ts"
+  },
+  "publish": {
+    "include": [
+      "mod.ts",
+      "cli.ts",
+      "scripts/*.mjs",
+      "everything-claude-code/agents/**/*.md",
+      "everything-claude-code/skills/**/*.md",
+      "everything-claude-code/commands/**/*.md",
+      "everything-claude-code/rules/**/*.md",
+      "LICENSE",
+      "README.md"
+    ]
+  },
+  "bin": {
+    "everything-cursor": "./cli.ts"
+  }
+}

@@ -51,9 +51,7 @@ const REPO_ROOT = process.cwd();
 
 // Determine if we're running from npm installation or source
 const isNpmInstall = __dirname.includes("node_modules");
-const PACKAGE_ROOT = isNpmInstall
-  ? path.resolve(__dirname, "..")
-  : REPO_ROOT;
+const PACKAGE_ROOT = isNpmInstall ? path.resolve(__dirname, "..") : REPO_ROOT;
 
 const SUBMODULE_PATH = path.join(PACKAGE_ROOT, "everything-claude-code");
 const CURSOR_DIR_LOCAL = path.join(REPO_ROOT, ".cursor");
@@ -106,15 +104,15 @@ async function installWithPreservation() {
   let selectedLocation;
 
   if (manifest && manifest.selectedLocation) {
-    // 既存のマニフェストから選択を復元
+    // Restore selection from existing manifest
     selectedLocation = manifest.selectedLocation;
     console.log(color.blue(`Using saved location: ${selectedLocation}`));
   } else {
-    // 初回実行: ユーザーに選択を促す
+    // First run: prompt user for selection
     selectedLocation = await promptInstallLocation();
   }
 
-  // インストールディレクトリ決定
+  // Determine installation directory
   const installDir = getInstallDir(selectedLocation);
   const manifestPath = getManifestPath(selectedLocation);
 
@@ -296,7 +294,7 @@ async function installWithPreservation() {
 function performRollback() {
   console.log(color.cyan("⟳ Rolling back to previous installation...\n"));
 
-  // バックアップマニフェスト読み込み（local優先、次にhome）
+  // Load backup manifest (local first, then home)
   let backupPath = path.join(CURSOR_DIR_LOCAL, MANIFEST_BACKUP_FILE);
   let installDir = CURSOR_DIR_LOCAL;
 
@@ -369,6 +367,17 @@ function performRollback() {
  * @returns {Promise<"local" | "home">}
  */
 async function promptInstallLocation() {
+  // Check for environment variable (for programmatic usage)
+  const envLocation = process.env.CURSOR_INSTALL_LOCATION;
+  if (envLocation === "local" || envLocation === "home") {
+    console.log(
+      color.blue(
+        `📍 Using ${envLocation} installation (from environment variable)`,
+      ),
+    );
+    return envLocation;
+  }
+
   console.log(color.cyan("\n📍 Select installation location:"));
   console.log("  1) local  - Project local (.cursor/)");
   console.log("  2) home   - Home directory (~/.cursor/)");
@@ -397,7 +406,7 @@ async function promptInstallLocation() {
       break; // eslint-disable-line no-unreachable
     default:
       console.log(color.red("Invalid choice, please try again"));
-      return promptInstallLocation(); // 再帰的に再試行
+      return promptInstallLocation(); // Recursively retry
   }
 }
 
@@ -575,7 +584,7 @@ function calculateChecksum(filePath) {
  * @returns {{manifest: object | null, manifestPath: string | null}}
  */
 function loadManifest() {
-  // まずローカルを確認
+  // Check local first
   let manifestPath = path.join(CURSOR_DIR_LOCAL, MANIFEST_FILE);
   if (fs.existsSync(manifestPath)) {
     const manifest = loadManifestFromPath(manifestPath);
@@ -584,7 +593,7 @@ function loadManifest() {
     }
   }
 
-  // 次にホームを確認
+  // Then check home
   manifestPath = path.join(CURSOR_DIR_HOME, MANIFEST_FILE);
   if (fs.existsSync(manifestPath)) {
     const manifest = loadManifestFromPath(manifestPath);
@@ -604,12 +613,12 @@ function loadManifestFromPath(manifestPath) {
     const content = fs.readFileSync(manifestPath, "utf-8");
     const manifest = JSON.parse(content);
 
-    // 基本構造の検証
+    // Validate basic structure
     if (!manifest.version || typeof manifest.files !== "object") {
       throw new Error("Invalid manifest structure");
     }
 
-    // selectedLocationフィールドの検証
+    // Validate selectedLocation field
     if (
       manifest.selectedLocation &&
       !["local", "home"].includes(manifest.selectedLocation)
@@ -619,7 +628,7 @@ function loadManifestFromPath(manifestPath) {
       );
     }
 
-    // Git hashの検証
+    // Validate git hash
     if (
       manifest.submoduleGitHash &&
       !/^[a-f0-9]{40}$/i.test(manifest.submoduleGitHash)

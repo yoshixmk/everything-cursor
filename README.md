@@ -1,47 +1,44 @@
 # everything-cursor
 
+[![JSR](https://jsr.io/badges/@yoshixmk/everything-cursor)](https://jsr.io/@yoshixmk/everything-cursor)
+[![JSR Score](https://jsr.io/badges/@yoshixmk/everything-cursor/score)](https://jsr.io/@yoshixmk/everything-cursor)
+
 Cursor settings created from
 [affaan-m/everything-claude-code](https://github.com/affaan-m/everything-claude-code).
 
 ## Installation
 
-### Option 1: Install from npm (Recommended)
+### Using Deno
+
+Install via [JSR](https://jsr.io/@yoshixmk/everything-cursor):
 
 ```bash
-npm install -g everything-cursor
-cursor-install
+deno install -Agf jsr:@yoshixmk/everything-cursor/cli
+everything-cursor install
 ```
 
-Or using npx without global installation:
+Or run directly without installation:
 
 ```bash
-npx everything-cursor cursor-install
+deno run -A jsr:@yoshixmk/everything-cursor/cli install
 ```
 
-### Option 2: Install from source
+### Using npm
 
-#### 1. Clone this repository with submodules
+Install globally via JSR:
 
 ```bash
-git clone --recursive https://github.com/yoshixmk/everything-cursor.git
-cd everything-cursor
+npm install -g @jsr/yoshixmk__everything-cursor
+everything-cursor install
 ```
 
-Or if already cloned:
+Or run directly without installation:
 
 ```bash
-git submodule update --init
+npx @jsr/yoshixmk__everything-cursor install
 ```
 
-#### 2. Install dependencies and Cursor settings
-
-```bash
-npm install
-# or if using pnpm:
-# pnpm install
-
-npm run cursor-install
-```
+### Installation Details
 
 On **first run**, you'll be prompted to choose an installation location:
 
@@ -76,13 +73,7 @@ automatically preserved.
 To remove the installed Cursor settings:
 
 ```bash
-cursor-uninstall
-```
-
-Or if installed from source:
-
-```bash
-npm run cursor-uninstall
+everything-cursor uninstall
 ```
 
 This will remove only the files that were installed from the submodule (tracked
@@ -90,6 +81,182 @@ in the manifest).
 
 **Your custom files are preserved**: User-created files in `.cursor/` are not
 removed during uninstallation.
+
+## Programmatic Usage
+
+You can also use everything-cursor programmatically in your Node.js or
+TypeScript projects.
+
+### Installation
+
+```bash
+npm install @yoshixmk/everything-cursor
+# or
+yarn add @yoshixmk/everything-cursor
+```
+
+### API Reference
+
+#### `install(options?)`
+
+Install everything-cursor settings programmatically.
+
+```typescript
+import { install } from "@yoshixmk/everything-cursor";
+
+// Install with default options (prompts for location)
+await install();
+
+// Install to local .cursor directory
+await install({ location: "local" });
+
+// Install silently to home directory
+await install({ location: "home", silent: true });
+
+// Install to a specific working directory
+await install({ location: "local", cwd: "/path/to/project" });
+```
+
+**Options:**
+
+- `location?: "local" | "home" | "ask"` - Target location (default: "ask")
+- `silent?: boolean` - Suppress console output (default: false)
+- `cwd?: string` - Working directory for installation (default: `process.cwd()`)
+
+#### `uninstall(options?)`
+
+Uninstall everything-cursor settings programmatically.
+
+```typescript
+import { uninstall } from "@yoshixmk/everything-cursor";
+
+// Uninstall with default options
+await uninstall();
+
+// Uninstall silently
+await uninstall({ silent: true });
+
+// Uninstall from a specific working directory
+await uninstall({ cwd: "/path/to/project" });
+```
+
+**Options:**
+
+- `silent?: boolean` - Suppress console output (default: false)
+- `cwd?: string` - Working directory for uninstallation (default:
+  `process.cwd()`)
+
+#### `isInstalled(cwd?)`
+
+Check if everything-cursor is currently installed.
+
+```typescript
+import { isInstalled } from "@yoshixmk/everything-cursor";
+
+const status = isInstalled();
+if (status.isInstalled) {
+  console.log(`Installed at: ${status.location}`);
+  console.log(`Version: ${status.version}`);
+  console.log(`File count: ${status.fileCount}`);
+}
+
+// Check installation in a specific directory
+const status2 = isInstalled("/path/to/project");
+```
+
+**Returns:** `InstallStatus`
+
+```typescript
+interface InstallStatus {
+  isInstalled: boolean;
+  location?: "local" | "home";
+  manifestPath?: string;
+  version?: string;
+  gitHash?: string;
+  gitTag?: string;
+  installedAt?: string;
+  fileCount?: number;
+}
+```
+
+#### `getInstalledPaths(cwd?)`
+
+Get paths of all installed files.
+
+```typescript
+import { getInstalledPaths } from "@yoshixmk/everything-cursor";
+
+const files = getInstalledPaths();
+for (const file of files) {
+  console.log(`${file.relativePath}`);
+  console.log(`  Path: ${file.path}`);
+  console.log(`  Installed: ${file.installedAt}`);
+  console.log(`  Checksum: ${file.checksum}`);
+}
+
+// Get installed files in a specific directory
+const files2 = getInstalledPaths("/path/to/project");
+```
+
+**Returns:** `InstalledFile[]`
+
+```typescript
+interface InstalledFile {
+  path: string; // Absolute path to the file
+  relativePath: string; // Relative path (e.g., "agents/planner.md")
+  installedAt: string; // ISO timestamp
+  checksum: string; // File checksum
+}
+```
+
+#### `getPackageInfo()`
+
+Get information about the package.
+
+```typescript
+import { getPackageInfo } from "@yoshixmk/everything-cursor";
+
+const info = getPackageInfo();
+console.log(info.name); // "@yoshixmk/everything-cursor"
+console.log(info.version); // "0.0.1"
+console.log(info.description); // Package description
+```
+
+### Complete Example
+
+```typescript
+import {
+  getInstalledPaths,
+  install,
+  isInstalled,
+  uninstall,
+} from "@yoshixmk/everything-cursor";
+
+async function setupCursorSettings() {
+  // Check if already installed
+  const status = isInstalled();
+
+  if (status.isInstalled) {
+    console.log(`Already installed (version: ${status.version})`);
+
+    // List installed files
+    const files = getInstalledPaths();
+    console.log(`Total files: ${files.length}`);
+
+    // Optionally reinstall
+    await uninstall({ silent: true });
+  }
+
+  // Install to local directory
+  await install({ location: "local", silent: false });
+
+  // Verify installation
+  const newStatus = isInstalled();
+  console.log(`Installation successful: ${newStatus.isInstalled}`);
+}
+
+setupCursorSettings().catch(console.error);
+```
 
 ## Structure
 
@@ -173,26 +340,21 @@ The installation script only manages `.md` files that come from the
 
 ### Update to Latest Version
 
-**If installed via npm:**
+To update to the latest version, simply reinstall:
 
 ```bash
-npm update -g everything-cursor
-cursor-install
+deno install -Agf jsr:@yoshixmk/everything-cursor/cli
+everything-cursor install
 ```
 
-**If installed from source:**
-
-```bash
-git submodule update --remote
-npm run cursor-install
-```
+Note: The `-f` flag forces reinstallation even if already installed.
 
 **Smart Update Detection**: The installation script tracks the git commit hash
 of the submodule. If the submodule hasn't changed, the installation is
 automatically skipped.
 
 ```bash
-$ cursor-install
+$ everything-cursor install
 📦 Checking everything-cursor...
 ✓ Already up to date
   Submodule version: v1.2.3 (abc1234)
@@ -203,7 +365,7 @@ $ cursor-install
 If an update causes issues, you can easily rollback:
 
 ```bash
-cursor-install --rollback
+everything-cursor install --rollback
 ```
 
 This restores the previous installation state.
@@ -215,29 +377,91 @@ For detailed technical specifications and implementation details, see:
 - [`docs/INSTALL_SPEC.md`](docs/INSTALL_SPEC.md) - Complete installation script
   specification
 
+## Development
+
+For developers who want to contribute or modify the code:
+
+### Install from source
+
+1. Clone this repository with submodules:
+
+```bash
+git clone --recursive https://github.com/yoshixmk/everything-cursor.git
+cd everything-cursor
+```
+
+Or if already cloned:
+
+```bash
+git submodule update --init
+```
+
+2. Install dependencies:
+
+```bash
+npm install
+# or: pnpm install
+```
+
+3. Test the installation locally:
+
+```bash
+npm run cursor-install
+```
+
+4. To uninstall:
+
+```bash
+npm run cursor-uninstall
+```
+
 ## Publishing (For Maintainers)
 
-To publish a new version to npm:
+To publish a new version:
 
-1. Update the version in `package.json`
-2. Update the submodule to the latest version:
-   ```bash
-   git submodule update --remote
-   ```
-3. Commit the changes
-4. Create and push a git tag:
-   ```bash
-   git tag v0.0.2
-   git push origin v0.0.2
-   ```
-5. Publish to npm:
-   ```bash
-   npm publish
-   ```
+### 1. Update version and submodule
 
-**Note**: The package includes a bundled copy of the `everything-claude-code`
-submodule content (agents, skills, commands, and rules directories only) to
-ensure it works when installed via npm without requiring git submodules.
+Update the version in `jsr.json`:
+
+```bash
+# Edit jsr.json to update version
+# Example: "version": "0.0.2"
+```
+
+Update the submodule to the latest version:
+
+```bash
+git submodule update --remote
+```
+
+### 2. Commit the changes
+
+```bash
+git add jsr.json everything-claude-code
+git commit -m "Bump version to 0.0.2"
+```
+
+### 3. Create and push a git tag
+
+```bash
+git tag v0.0.2
+git push origin v0.0.2
+```
+
+### 4. Publish to JSR
+
+```bash
+npx jsr publish
+```
+
+You will be prompted to authenticate in your browser.
+
+### Publishing Notes
+
+- Only `.md` files from `agents/`, `skills/`, `commands/`, and `rules/`
+  directories are included (per `INSTALL_SPEC.md` requirements)
+- Development files (`.sh`, `.py`, `.js`) and other non-Markdown files are
+  automatically excluded
 
 ## Features
 
