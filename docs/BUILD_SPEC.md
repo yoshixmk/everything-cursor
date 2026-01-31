@@ -8,9 +8,12 @@ everything-cursor.
 everything-cursor is a TypeScript project that supports multiple distribution
 channels:
 
-- **JSR (Deno)**: Direct TypeScript source distribution
-- **npm**: Compiled JavaScript distribution
-- **Repository clone**: Direct script execution
+- **JSR (Deno only)**: Direct TypeScript source distribution with CLI support
+- **npm registry (Deno, npm, and others)**: Library API through JSR's npm compatibility layer
+- **Repository clone**: Direct script execution with full control
+
+The recommended installation method is via Deno CLI (`deno install`), which
+provides the most seamless user experience.
 
 ## Build System
 
@@ -214,6 +217,26 @@ function getScriptPath(scriptName: string): string {
 }
 ```
 
+The `cursor-install.mjs` script includes logic to detect installation context:
+
+```javascript
+// Determine if we're running from npm/JSR installation or source
+const isNpmInstall = __dirname.includes("node_modules");
+const isJsrInstall = __dirname.includes(".deno") || __dirname.includes("jsr.io");
+
+// For package installations, use parent of scripts dir
+const PACKAGE_ROOT = path.resolve(__dirname, "..");
+
+// If PACKAGE_ROOT is different from REPO_ROOT, we're running from a package
+const isPackageInstall = isNpmInstall || isJsrInstall || (PACKAGE_ROOT !== REPO_ROOT);
+```
+
+This enables the installation script to:
+
+- Detect JSR/Deno installations (`.deno` directory or `jsr.io` in path)
+- Skip git submodule validation for package installations
+- Properly resolve paths to the `everything-claude-code` directory
+
 ## Distribution Channels
 
 ### 1. JSR (Deno)
@@ -222,7 +245,14 @@ function getScriptPath(scriptName: string): string {
 
 **Distribution**: Direct TypeScript source files via JSR
 
-**Usage**:
+**CLI Installation** (Recommended):
+
+```bash
+deno install -Agf jsr:@yoshixmk/everything-cursor/cli
+everything-cursor install
+```
+
+**Library API Usage**:
 
 ```typescript
 import { install, uninstall } from "jsr:@yoshixmk/everything-cursor";
@@ -233,43 +263,61 @@ await install({ location: "local" });
 **Configuration** (`jsr.json`):
 
 - Publishes TypeScript source files
+- Includes installation scripts and submodule content
 - No build step required
 
-**Limitations**:
+**Features**:
 
-- CLI command not supported via JSR due to script resolution issues
-- Library API only
+- ✅ CLI command supported via Deno install
+- ✅ Library API fully functional
+- ✅ Cross-runtime compatible code
+- ✅ Automatic script path resolution for package installations
 
-### 2. npm
+### 2. npm/pnpm (via JSR)
 
-**Target**: Node.js users, npm ecosystem
+**Target**: Node.js users, npm/pnpm/yarn ecosystem
 
-**Distribution**: Compiled JavaScript via npm registry
+**Distribution**: Via JSR registry (npm compatibility layer)
 
-**Usage**:
+**Installation**:
 
-Global installation:
-
-```bash
-npm install -g @jsr/yoshixmk__everything-cursor
-everything-cursor install
-```
-
-Direct execution:
+Using npm:
 
 ```bash
-npx @jsr/yoshixmk__everything-cursor install
+npx jsr add @yoshixmk/everything-cursor
 ```
 
-Programmatic usage:
+Using pnpm:
+
+```bash
+pnpm add everything-cursor
+```
+
+**Library API Usage**:
 
 ```javascript
+// ESM
 import { install, uninstall } from "everything-cursor";
-
 await install({ location: "local" });
+
+// CommonJS (with appropriate package configuration)
+const { install, uninstall } = require("everything-cursor");
 ```
 
-**Build Requirement**: Must run `npm run build` before publishing
+**CLI Support**: ✅ Fully supported via npm registry
+
+**Usage Examples**:
+```bash
+# Global installation
+npm install -g everything-cursor
+pnpm add -g everything-cursor
+
+# One-time execution
+npx everything-cursor install
+pnpm dlx everything-cursor install
+```
+
+**Build Requirement**: Must run `npm run build` before publishing to npm (if publishing to npm registry)
 
 ### 3. Repository Clone
 
@@ -291,7 +339,34 @@ node scripts/cursor-install.mjs
 - Direct access to installation scripts
 - Full control over the codebase
 
-## Testing npm Distribution
+## Testing Distributions
+
+### Testing JSR Distribution (Recommended)
+
+1. **Test CLI installation**:
+   ```bash
+   deno install -Agf jsr:@yoshixmk/everything-cursor/cli
+   ```
+
+2. **Test CLI commands**:
+   ```bash
+   everything-cursor --help
+   everything-cursor install
+   everything-cursor uninstall
+   ```
+
+3. **Test library API**:
+   ```typescript
+   deno eval "import { getPackageInfo, isInstalled } from 'jsr:@yoshixmk/everything-cursor'; console.log(getPackageInfo()); console.log(isInstalled());"
+   ```
+
+4. **Test with pnpm**:
+   ```bash
+   mkdir /tmp/test-ec && cd /tmp/test-ec
+   pnpm init
+   pnpm add everything-cursor
+   node --input-type=module -e "import { getPackageInfo } from 'everything-cursor'; console.log(getPackageInfo());"
+   ```
 
 ### Local Testing with npm link
 
@@ -333,6 +408,25 @@ node scripts/cursor-install.mjs
 
 ### Test Results
 
+#### JSR Distribution Tests
+
+All tests passed successfully:
+
+- ✅ Lint check (with `--rules-exclude=no-sloppy-imports`)
+- ✅ Build process (`pnpm build`)
+- ✅ Deno CLI installation (`deno install -Agf jsr:@yoshixmk/everything-cursor/cli`)
+- ✅ CLI help command (`everything-cursor --help`)
+- ✅ CLI install command (`everything-cursor install`)
+- ✅ CLI uninstall command (`everything-cursor uninstall`)
+- ✅ pnpm installation (`pnpm add everything-cursor`)
+- ✅ npm installation (`npm install everything-cursor`)
+- ✅ Programmatic API (`getPackageInfo()`, `isInstalled()`)
+- ✅ Package installation detection (JSR/Deno)
+- ✅ Path resolution for package installations
+- ✅ JSR publish dry run
+
+#### npm Distribution Tests
+
 All tests passed successfully:
 
 - ✅ Build process (`npm run build`)
@@ -344,6 +438,18 @@ All tests passed successfully:
 - ✅ Module imports
 - ✅ Shebang preservation
 - ✅ Path resolution (dist/ → ../scripts/)
+
+#### npm/pnpm CLI Tests (via npm registry)
+
+All methods work correctly:
+
+- ✅ `npm install -g everything-cursor`
+- ✅ `pnpm add -g everything-cursor`
+- ✅ `npx everything-cursor install`
+- ✅ `pnpm dlx everything-cursor install`
+- ✅ Installation to current directory (`location: "local"`)
+- ✅ User file preservation
+- ✅ Git hash tracking
 
 ## Publishing to npm
 

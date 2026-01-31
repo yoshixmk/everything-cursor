@@ -56,7 +56,7 @@ if (args[0] === "--help" || args[0] === "-h" || args[0] === "help") {
 const isJsrInstall = import.meta.url.includes("jsr.io") ||
   import.meta.url.includes("deno.land");
 
-if (isJsrInstall) {
+if (isJsrInstall && !isDeno) {
   console.error("⚠️  Installation from JSR is not yet supported.");
   console.error("");
   console.error("Please use one of these methods instead:");

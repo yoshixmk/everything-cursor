@@ -18,25 +18,38 @@ scripts. For information about:
 
 The installation scripts can be invoked through multiple methods:
 
-1. **CLI Command** (after npm install):
+1. **CLI Command** (via Deno):
    ```bash
+   deno install -Agf jsr:@yoshixmk/everything-cursor/cli
    everything-cursor install
    everything-cursor uninstall
    ```
 
-2. **Programmatic API**:
+2. **CLI Command** (via npm/pnpm):
+   ```bash
+   # Global installation
+   npm install -g everything-cursor
+   pnpm add -g everything-cursor
+   everything-cursor install
+   
+   # One-time execution
+   npx everything-cursor install
+   pnpm dlx everything-cursor install
+   ```
+
+3. **Programmatic API**:
    ```typescript
-   import { install, uninstall } from "everything-cursor";
+   import { install, uninstall } from "@yoshixmk/everything-cursor";
    await install({ location: "local" });
    ```
 
-3. **Direct Script Execution** (from repository):
+4. **Direct Script Execution** (from repository):
    ```bash
    node scripts/cursor-install.mjs
    node scripts/cursor-uninstall.mjs
    ```
 
-4. **npm Scripts** (for development):
+5. **npm Scripts** (for development):
    ```bash
    npm run dev:install
    npm run dev:uninstall
@@ -753,7 +766,9 @@ pnpm cursor-install  # Uses checked-out version
 **Note**: The following test scenarios use specific command examples (e.g.,
 `pnpm cursor-install`), but the same tests apply to all invocation methods:
 
-- CLI command: `everything-cursor install`
+- CLI command (Deno): `everything-cursor install`
+- CLI command (npm): `npx everything-cursor install`
+- CLI command (pnpm): `pnpm dlx everything-cursor install`
 - Programmatic API: `await install({ location: "local" })`
 - Direct script: `node scripts/cursor-install.mjs`
 - npm script: `npm run dev:install`

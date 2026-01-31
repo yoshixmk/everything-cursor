@@ -8,63 +8,49 @@ Cursor settings created from
 
 ## Installation
 
-### Using Deno
+### Quick Start (Recommended)
 
-You can use the library API in your Deno code:
+Choose your preferred package manager:
 
-```typescript
-import { install, uninstall } from "jsr:@yoshixmk/everything-cursor";
-
-// Install to local .cursor directory
-await install({ location: "local" });
-
-// Install to home .cursor directory
-await install({ location: "home" });
-
-// Uninstall
-await uninstall();
-```
-
-**Note:** The CLI command (`deno install jsr:@yoshixmk/everything-cursor/cli`)
-is not yet supported due to script resolution limitations. Please use the
-library API or clone the repository to run the installation scripts directly.
-
-### Using pnpm
-
-Install from JSR:
-
+**Deno** (Recommended):
 ```bash
-pnpm add jsr:@yoshixmk/everything-cursor
+# One-time execution
+deno x jsr:@yoshixmk/everything-cursor/cli install
+
+or
+
+# Global installation
+deno install -Agf jsr:@yoshixmk/everything-cursor/cli
+everything-cursor install
 ```
 
-Then use the library API in your code:
-
-```typescript
-import { install, uninstall } from "@yoshixmk/everything-cursor";
-
-await install({ location: "local" });
-```
-
-### Using npm
-
-Add the package to your project:
-
+**npm**:
 ```bash
-npx jsr add @yoshixmk/everything-cursor
+# One-time execution
+npx everything-cursor install
+
+or
+
+# Global installation
+npm install -g everything-cursor
+everything-cursor install
 ```
 
-Then use the library API in your code:
+**pnpm**:
+```bash
+# One-time execution
+pnpm dlx everything-cursor install
 
-```javascript
-const { install, uninstall } = require("@yoshixmk/everything-cursor");
+or
 
-install({ location: "local" });
+# Global installation
+pnpm add -g everything-cursor
+everything-cursor install
 ```
 
-**Note:** CLI commands via npm/pnpm are not yet supported. Please use the
-library API or clone the repository to run the installation scripts directly.
+The CLI will prompt you to choose between local (`.cursor/`) or home (`~/.cursor/`) installation.
 
-### From Repository (Recommended)
+### Alternative: From Repository
 
 Clone the repository and run the installation script directly:
 
@@ -74,7 +60,8 @@ cd everything-cursor
 node scripts/cursor-install.mjs
 ```
 
-This method gives you full control and avoids any module resolution issues.
+This method gives you full control and allows you to modify the settings before
+installation.
 
 ### Installation Details
 
@@ -108,18 +95,10 @@ automatically preserved.
 
 ## Uninstallation
 
-To remove the installed Cursor settings, use the library API:
+To remove the installed Cursor settings:
 
-```typescript
-// Deno
-import { uninstall } from "jsr:@yoshixmk/everything-cursor";
-await uninstall();
-```
-
-```javascript
-// Node.js
-const { uninstall } = require("@yoshixmk/everything-cursor");
-uninstall();
+```bash
+everything-cursor uninstall
 ```
 
 Or from the repository:
@@ -134,186 +113,36 @@ in the manifest).
 **Your custom files are preserved**: User-created files in `.cursor/` are not
 removed during uninstallation.
 
-## Programmatic Usage
+## For Developers: Programmatic Usage
 
-You can also use everything-cursor programmatically in your Node.js, Deno, or
-TypeScript projects.
+If you want to integrate everything-cursor into your own tools or automation scripts, you can use the library API.
 
 ### Installation
 
 ```bash
 # pnpm
-pnpm add jsr:@yoshixmk/everything-cursor
+pnpm add everything-cursor
 
 # npm
-npx jsr add @yoshixmk/everything-cursor
+npm install everything-cursor
 
 # Deno
-deno add @yoshixmk/everything-cursor
+import { install } from "jsr:@yoshixmk/everything-cursor";
 ```
 
-### API Reference
-
-#### `install(options?)`
-
-Install everything-cursor settings programmatically.
+### Basic Usage
 
 ```typescript
-import { install } from "@yoshixmk/everything-cursor";
-
-// Install with default options (prompts for location)
-await install();
+import { install, uninstall } from "@yoshixmk/everything-cursor";
 
 // Install to local .cursor directory
 await install({ location: "local" });
 
-// Install silently to home directory
-await install({ location: "home", silent: true });
-
-// Install to a specific working directory
-await install({ location: "local", cwd: "/path/to/project" });
-```
-
-**Options:**
-
-- `location?: "local" | "home" | "ask"` - Target location (default: "ask")
-- `silent?: boolean` - Suppress console output (default: false)
-- `cwd?: string` - Working directory for installation (default: `process.cwd()`)
-
-#### `uninstall(options?)`
-
-Uninstall everything-cursor settings programmatically.
-
-```typescript
-import { uninstall } from "@yoshixmk/everything-cursor";
-
-// Uninstall with default options
+// Uninstall
 await uninstall();
-
-// Uninstall silently
-await uninstall({ silent: true });
-
-// Uninstall from a specific working directory
-await uninstall({ cwd: "/path/to/project" });
 ```
 
-**Options:**
-
-- `silent?: boolean` - Suppress console output (default: false)
-- `cwd?: string` - Working directory for uninstallation (default:
-  `process.cwd()`)
-
-#### `isInstalled(cwd?)`
-
-Check if everything-cursor is currently installed.
-
-```typescript
-import { isInstalled } from "@yoshixmk/everything-cursor";
-
-const status = isInstalled();
-if (status.isInstalled) {
-  console.log(`Installed at: ${status.location}`);
-  console.log(`Version: ${status.version}`);
-  console.log(`File count: ${status.fileCount}`);
-}
-
-// Check installation in a specific directory
-const status2 = isInstalled("/path/to/project");
-```
-
-**Returns:** `InstallStatus`
-
-```typescript
-interface InstallStatus {
-  isInstalled: boolean;
-  location?: "local" | "home";
-  manifestPath?: string;
-  version?: string;
-  gitHash?: string;
-  gitTag?: string;
-  installedAt?: string;
-  fileCount?: number;
-}
-```
-
-#### `getInstalledPaths(cwd?)`
-
-Get paths of all installed files.
-
-```typescript
-import { getInstalledPaths } from "@yoshixmk/everything-cursor";
-
-const files = getInstalledPaths();
-for (const file of files) {
-  console.log(`${file.relativePath}`);
-  console.log(`  Path: ${file.path}`);
-  console.log(`  Installed: ${file.installedAt}`);
-  console.log(`  Checksum: ${file.checksum}`);
-}
-
-// Get installed files in a specific directory
-const files2 = getInstalledPaths("/path/to/project");
-```
-
-**Returns:** `InstalledFile[]`
-
-```typescript
-interface InstalledFile {
-  path: string; // Absolute path to the file
-  relativePath: string; // Relative path (e.g., "agents/planner.md")
-  installedAt: string; // ISO timestamp
-  checksum: string; // File checksum
-}
-```
-
-#### `getPackageInfo()`
-
-Get information about the package.
-
-```typescript
-import { getPackageInfo } from "@yoshixmk/everything-cursor";
-
-const info = getPackageInfo();
-console.log(info.name); // "@yoshixmk/everything-cursor"
-console.log(info.version); // "0.0.1"
-console.log(info.description); // Package description
-```
-
-### Complete Example
-
-```typescript
-import {
-  getInstalledPaths,
-  install,
-  isInstalled,
-  uninstall,
-} from "@yoshixmk/everything-cursor";
-
-async function setupCursorSettings() {
-  // Check if already installed
-  const status = isInstalled();
-
-  if (status.isInstalled) {
-    console.log(`Already installed (version: ${status.version})`);
-
-    // List installed files
-    const files = getInstalledPaths();
-    console.log(`Total files: ${files.length}`);
-
-    // Optionally reinstall
-    await uninstall({ silent: true });
-  }
-
-  // Install to local directory
-  await install({ location: "local", silent: false });
-
-  // Verify installation
-  const newStatus = isInstalled();
-  console.log(`Installation successful: ${newStatus.isInstalled}`);
-}
-
-setupCursorSettings().catch(console.error);
-```
+For detailed API documentation, see the [JSR package page](https://jsr.io/@yoshixmk/everything-cursor).
 
 ## Structure
 
