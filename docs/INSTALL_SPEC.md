@@ -2,7 +2,8 @@
 
 ## Problem Statement
 
-Current implementation (`cursor-install.mjs`) completely removes existing directories before copying from submodule:
+Current implementation (`cursor-install.mjs`) completely removes existing
+directories before copying from submodule:
 
 ```javascript
 // Remove existing directory if it exists
@@ -11,17 +12,22 @@ if (fs.existsSync(destPath)) {
 }
 ```
 
-**Issue**: This deletes user-defined custom files in `.cursor/agents/`, `.cursor/skills/`, etc.
+**Issue**: This deletes user-defined custom files in `.cursor/agents/`,
+`.cursor/skills/`, etc.
 
 ## Requirements
 
 ### Must Have
+
 1. **Preserve User Files**: Do not delete files that are not in the submodule
-2. **Update Submodule Files**: Overwrite files that exist in the submodule with latest version
-3. **Clean Installation**: Remove files that were previously in submodule but have been deleted
+2. **Update Submodule Files**: Overwrite files that exist in the submodule with
+   latest version
+3. **Clean Installation**: Remove files that were previously in submodule but
+   have been deleted
 4. **Idempotent**: Running multiple times should produce consistent results
 
 ### Should Have
+
 1. **Backup Option**: Optionally create backup before installation
 2. **Dry Run Mode**: Show what would be changed without actually changing
 3. **Verbose Output**: Show which files were updated/added/preserved
@@ -30,7 +36,8 @@ if (fs.existsSync(destPath)) {
 
 ### Architecture Diagram
 
-The following diagram illustrates the complete installation flow with git hash tracking and file preservation:
+The following diagram illustrates the complete installation flow with git hash
+tracking and file preservation:
 
 ```mermaid
 flowchart TD
@@ -54,7 +61,9 @@ flowchart TD
 ```
 
 **Key Points:**
-- **Git Hash Tracking**: Installation only proceeds if submodule hash has changed
+
+- **Git Hash Tracking**: Installation only proceeds if submodule hash has
+  changed
 - **Markdown Only**: Only `.md` files are processed from the submodule
 - **User File Preservation**: Files not in manifest are preserved (user-created)
 - **Rollback Support**: Manifest backup enables rollback on failure
@@ -63,37 +72,44 @@ flowchart TD
 
 ### Scope Limitation
 
-To improve security and reduce processing overhead, the installation script **only processes `.md` (Markdown) files** from the submodule.
+To improve security and reduce processing overhead, the installation script
+**only processes `.md` (Markdown) files** from the submodule.
 
 **Rationale:**
-- The everything-claude-code submodule primarily contains documentation files (`.md`)
+
+- The everything-claude-code submodule primarily contains documentation files
+  (`.md`)
 - Limiting file types reduces security risks (no executable files)
 - Faster processing and clearer intent
 - Simpler to maintain and test
 
 **Implementation:**
+
 ```javascript
 // Filter for .md files only
 function getMdFiles(dir) {
   const files = [];
   const entries = fs.readdirSync(dir, { withFileTypes: true });
-  
+
   for (const entry of entries) {
     const fullPath = path.join(dir, entry.name);
-    
+
     if (entry.isDirectory()) {
       // Recursively scan subdirectories
       files.push(...getMdFiles(fullPath));
-    } else if (entry.isFile() && path.extname(entry.name).toLowerCase() === '.md') {
+    } else if (
+      entry.isFile() && path.extname(entry.name).toLowerCase() === ".md"
+    ) {
       files.push(fullPath);
     }
   }
-  
+
   return files;
 }
 ```
 
 **Impact:**
+
 - Only `.md` files are copied to `.cursor/`
 - Only `.md` files are tracked in the manifest
 - Non-`.md` user files are unaffected
@@ -102,9 +118,12 @@ function getMdFiles(dir) {
 
 ### Update Detection Strategy
 
-The installation script tracks the git commit hash of the submodule to determine if an update is needed. This prevents unnecessary file operations when the submodule hasn't changed.
+The installation script tracks the git commit hash of the submodule to determine
+if an update is needed. This prevents unnecessary file operations when the
+submodule hasn't changed.
 
 **Priority Order:**
+
 1. **Git Tag** (if available): `v1.2.3`
 2. **Git Commit Hash**: Full SHA-1 hash
 
@@ -130,26 +149,35 @@ The installation script tracks the git commit hash of the submodule to determine
 
 ```javascript
 // Get current git information from submodule
-const currentHash = (await $`git -C ${SUBMODULE_PATH} rev-parse HEAD`).stdout.trim();
-const currentTag = (await $`git -C ${SUBMODULE_PATH} describe --tags --exact-match 2>/dev/null || echo ""`).stdout.trim();
+const currentHash = (await $`git -C ${SUBMODULE_PATH} rev-parse HEAD`).stdout
+  .trim();
+const currentTag =
+  (await $`git -C ${SUBMODULE_PATH} describe --tags --exact-match 2>/dev/null || echo ""`)
+    .stdout.trim();
 
 // Load previous manifest
 const manifest = loadManifest();
 
 // Check if update is needed
 if (manifest && manifest.submoduleGitHash === currentHash) {
-  console.log(chalk.blue('✓ Already up to date'));
-  console.log(`  Submodule version: ${manifest.submoduleGitTag || currentHash.slice(0, 7)}`);
+  console.log(chalk.blue("✓ Already up to date"));
+  console.log(
+    `  Submodule version: ${
+      manifest.submoduleGitTag || currentHash.slice(0, 7)
+    }`,
+  );
   process.exit(0);
 }
 
 // Display update information
-const oldVersion = manifest?.submoduleGitTag || manifest?.submoduleGitHash?.slice(0, 7) || 'initial';
+const oldVersion = manifest?.submoduleGitTag ||
+  manifest?.submoduleGitHash?.slice(0, 7) || "initial";
 const newVersion = currentTag || currentHash.slice(0, 7);
 console.log(chalk.cyan(`🔄 Updating: ${oldVersion} → ${newVersion}`));
 ```
 
 **Benefits:**
+
 - Skips installation when submodule is unchanged
 - Provides clear version information to users
 - Enables rollback to specific versions
@@ -161,21 +189,23 @@ console.log(chalk.cyan(`🔄 Updating: ${oldVersion} → ${newVersion}`));
 
 **Note**: Only `.md` files are processed. All other file types are ignored.
 
-| Scenario | File Location | Action |
-|----------|--------------|--------|
-| `.md` file exists in submodule only | `everything-claude-code/agents/foo.md` | Copy to `.cursor/agents/foo.md` |
-| `.md` file exists in both locations | Both locations | Overwrite `.cursor/` with submodule version |
-| `.md` file exists in `.cursor/` only | `.cursor/agents/custom.md` | **Preserve** (do not delete) |
-| `.md` file was removed from submodule | Previously tracked, now gone | Remove from `.cursor/` |
-| Non-`.md` file in `.cursor/` | `.cursor/agents/script.sh` | **Preserve** (ignored by script) |
+| Scenario                              | File Location                          | Action                                      |
+| ------------------------------------- | -------------------------------------- | ------------------------------------------- |
+| `.md` file exists in submodule only   | `everything-claude-code/agents/foo.md` | Copy to `.cursor/agents/foo.md`             |
+| `.md` file exists in both locations   | Both locations                         | Overwrite `.cursor/` with submodule version |
+| `.md` file exists in `.cursor/` only  | `.cursor/agents/custom.md`             | **Preserve** (do not delete)                |
+| `.md` file was removed from submodule | Previously tracked, now gone           | Remove from `.cursor/`                      |
+| Non-`.md` file in `.cursor/`          | `.cursor/agents/script.sh`             | **Preserve** (ignored by script)            |
 
 ### Tracking Installed Files
 
-To determine which files were installed by the script (vs user-created), maintain a manifest file:
+To determine which files were installed by the script (vs user-created),
+maintain a manifest file:
 
 **Location**: `.cursor/.everything-cursor-manifest.json`
 
 **Format**:
+
 ```json
 {
   "version": "1.0.0",
@@ -198,6 +228,7 @@ To determine which files were installed by the script (vs user-created), maintai
 ```
 
 **New Fields:**
+
 - `submoduleGitHash`: Git commit hash of the submodule at installation time
 - `submoduleGitTag`: Git tag (if available) for human-readable versioning
 - Only `.md` files are tracked in the `files` object
@@ -231,15 +262,18 @@ To determine which files were installed by the script (vs user-created), maintai
 
 ```javascript
 // Get current git information from submodule
-const currentHash = (await $`git -C ${SUBMODULE_PATH} rev-parse HEAD`).stdout.trim();
-const currentTag = (await $`git -C ${SUBMODULE_PATH} describe --tags --exact-match 2>/dev/null || echo ""`).stdout.trim();
+const currentHash = (await $`git -C ${SUBMODULE_PATH} rev-parse HEAD`).stdout
+  .trim();
+const currentTag =
+  (await $`git -C ${SUBMODULE_PATH} describe --tags --exact-match 2>/dev/null || echo ""`)
+    .stdout.trim();
 
 // Load or create manifest
-let manifest = loadManifest() || { version: '1.0.0', files: {} };
+let manifest = loadManifest() || { version: "1.0.0", files: {} };
 
 // Check if update is needed
 if (manifest.submoduleGitHash === currentHash) {
-  console.log('Already up to date');
+  console.log("Already up to date");
   process.exit(0);
 }
 
@@ -248,41 +282,41 @@ backupManifest(manifest);
 
 // Create new manifest with git info
 let newManifest = {
-  version: '1.0.0',
+  version: "1.0.0",
   installedAt: new Date().toISOString(),
   submoduleGitHash: currentHash,
   submoduleGitTag: currentTag || undefined,
-  files: {}
+  files: {},
 };
 
 for (const dir of DIRS_TO_COPY) {
   const sourceDir = path.join(SUBMODULE_PATH, dir);
   const destDir = path.join(CURSOR_DIR, dir);
-  
+
   // Create destination directory if needed
   fs.mkdirSync(destDir, { recursive: true });
-  
+
   // Get only .md files from submodule (recursively)
   const mdFiles = getMdFiles(sourceDir);
-  
+
   // Copy/update .md files from submodule
   for (const file of mdFiles) {
     const relativePath = path.relative(sourceDir, file);
     const destPath = path.join(destDir, relativePath);
     const manifestKey = `${dir}/${relativePath}`;
-    
+
     // Copy file
     fs.mkdirSync(path.dirname(destPath), { recursive: true });
     fs.copyFileSync(file, destPath);
-    
+
     // Add to new manifest
     newManifest.files[manifestKey] = {
       source: path.relative(REPO_ROOT, file),
       installedAt: new Date().toISOString(),
-      checksum: calculateChecksum(file)
+      checksum: calculateChecksum(file),
     };
   }
-  
+
   // Remove files that were in old manifest but not in submodule anymore
   for (const [manifestKey, fileInfo] of Object.entries(manifest.files)) {
     if (manifestKey.startsWith(`${dir}/`) && !newManifest.files[manifestKey]) {
@@ -305,7 +339,9 @@ function getMdFiles(dir) {
     const fullPath = path.join(dir, entry.name);
     if (entry.isDirectory()) {
       files.push(...getMdFiles(fullPath));
-    } else if (entry.isFile() && path.extname(entry.name).toLowerCase() === '.md') {
+    } else if (
+      entry.isFile() && path.extname(entry.name).toLowerCase() === ".md"
+    ) {
       files.push(fullPath);
     }
   }
@@ -317,7 +353,8 @@ function getMdFiles(dir) {
 
 ### Error Categories and Recovery
 
-The installation script must handle various error scenarios gracefully with appropriate recovery strategies.
+The installation script must handle various error scenarios gracefully with
+appropriate recovery strategies.
 
 #### 1. Git Operation Errors
 
@@ -325,10 +362,13 @@ The installation script must handle various error scenarios gracefully with appr
 
 ```javascript
 try {
-  const gitHash = (await $`git -C ${SUBMODULE_PATH} rev-parse HEAD`).stdout.trim();
+  const gitHash = (await $`git -C ${SUBMODULE_PATH} rev-parse HEAD`).stdout
+    .trim();
 } catch (error) {
-  console.error(chalk.red('✗ Failed to get git hash from submodule'));
-  console.error('  Is the submodule initialized? Try: git submodule update --init');
+  console.error(chalk.red("✗ Failed to get git hash from submodule"));
+  console.error(
+    "  Is the submodule initialized? Try: git submodule update --init",
+  );
   process.exit(1);
 }
 ```
@@ -346,18 +386,18 @@ function loadManifest() {
     if (!fs.existsSync(manifestPath)) {
       return null;
     }
-    const content = fs.readFileSync(manifestPath, 'utf-8');
+    const content = fs.readFileSync(manifestPath, "utf-8");
     const manifest = JSON.parse(content);
-    
+
     // Validate manifest structure
-    if (!manifest.version || typeof manifest.files !== 'object') {
-      throw new Error('Invalid manifest structure');
+    if (!manifest.version || typeof manifest.files !== "object") {
+      throw new Error("Invalid manifest structure");
     }
-    
+
     return manifest;
   } catch (error) {
-    console.warn(chalk.yellow('⚠ Manifest file is corrupted or invalid'));
-    console.warn('  Treating as fresh installation');
+    console.warn(chalk.yellow("⚠ Manifest file is corrupted or invalid"));
+    console.warn("  Treating as fresh installation");
     return null;
   }
 }
@@ -373,17 +413,17 @@ function loadManifest() {
 try {
   fs.copyFileSync(srcPath, destPath);
 } catch (error) {
-  if (error.code === 'EACCES') {
-    console.error(chalk.red('✗ Permission denied'));
+  if (error.code === "EACCES") {
+    console.error(chalk.red("✗ Permission denied"));
     console.error(`  Cannot write to: ${destPath}`);
-    console.error('  Check file permissions');
-  } else if (error.code === 'ENOSPC') {
-    console.error(chalk.red('✗ Insufficient disk space'));
-    console.error('  Free up disk space and try again');
+    console.error("  Check file permissions");
+  } else if (error.code === "ENOSPC") {
+    console.error(chalk.red("✗ Insufficient disk space"));
+    console.error("  Free up disk space and try again");
   } else {
     console.error(chalk.red(`✗ Failed to copy file: ${error.message}`));
   }
-  
+
   // Rollback using backup manifest
   await rollbackInstallation();
   process.exit(1);
@@ -408,9 +448,9 @@ try {
     // ... update manifest entry
   }
 } catch (error) {
-  console.error(chalk.red('✗ Installation failed'));
-  console.error('  Rolling back changes...');
-  
+  console.error(chalk.red("✗ Installation failed"));
+  console.error("  Rolling back changes...");
+
   // Remove partially installed files
   for (const installedFile of installedFiles) {
     try {
@@ -419,10 +459,10 @@ try {
       console.warn(`  Warning: Could not remove ${installedFile}`);
     }
   }
-  
+
   // Restore backup manifest
   restoreManifest();
-  
+
   throw error;
 }
 ```
@@ -437,9 +477,9 @@ try {
 try {
   saveManifest(newManifest);
 } catch (error) {
-  console.error(chalk.red('✗ Failed to save manifest'));
-  console.error('  Installation completed but tracking may be inconsistent');
-  console.error('  Consider running installation again');
+  console.error(chalk.red("✗ Failed to save manifest"));
+  console.error("  Installation completed but tracking may be inconsistent");
+  console.error("  Consider running installation again");
   process.exit(1);
 }
 ```
@@ -448,15 +488,18 @@ try {
 
 ### Rollback Mechanism
 
-See [Rollback Mechanism](#rollback-mechanism) section for detailed rollback specifications.
+See [Rollback Mechanism](#rollback-mechanism) section for detailed rollback
+specifications.
 
 ## User Experience Specification
 
 ### Output Format and Color Coding
 
-The installation script provides clear, color-coded feedback to users throughout the process.
+The installation script provides clear, color-coded feedback to users throughout
+the process.
 
-**Dependencies**: Uses `chalk` (included in `zx` package, no additional installation needed)
+**Dependencies**: Uses `chalk` (included in `zx` package, no additional
+installation needed)
 
 #### Status Indicators
 
@@ -517,6 +560,7 @@ Summary:
 ### Progress Tracking
 
 For each file operation, display:
+
 1. **Directory context**: Group files by parent directory
 2. **File name**: Relative path from directory
 3. **Operation type**: updated/added/preserved/removed
@@ -536,6 +580,7 @@ if (!manifest.files[manifestKey] && fs.existsSync(destPath)) {
 ### Summary Statistics
 
 Track and display:
+
 - Files updated (overwrote existing)
 - Files added (new from submodule)
 - Files removed (deleted from submodule)
@@ -544,41 +589,45 @@ Track and display:
 ### Implementation
 
 ```javascript
-import { chalk } from 'zx';
+import { chalk } from "zx";
 
 // Track statistics
 let stats = {
   updated: 0,
   added: 0,
   removed: 0,
-  preserved: 0
+  preserved: 0,
 };
 
 // Example usage
-console.log(chalk.green('✓'), `${file} (updated)`);
+console.log(chalk.green("✓"), `${file} (updated)`);
 stats.updated++;
 
 // Display summary
-console.log(chalk.green.bold('\n✅ Installation complete!'));
-console.log(chalk.blue('Summary:'));
-console.log('━'.repeat(40));
+console.log(chalk.green.bold("\n✅ Installation complete!"));
+console.log(chalk.blue("Summary:"));
+console.log("━".repeat(40));
 console.log(chalk.cyan(`  ${stats.updated} .md files updated`));
 console.log(chalk.cyan(`  ${stats.added} .md files added`));
 console.log(chalk.cyan(`  ${stats.removed} .md files removed`));
 console.log(chalk.cyan(`  ${stats.preserved} user files preserved`));
-console.log('━'.repeat(40));
+console.log("━".repeat(40));
 ```
 
 ## Edge Cases
 
 ### 1. User Modified Submodule File
-If user modifies a `.md` file that exists in submodule (e.g., customizes `agents/planner.md`):
+
+If user modifies a `.md` file that exists in submodule (e.g., customizes
+`agents/planner.md`):
+
 - **Current Behavior**: File will be overwritten
 - **Recommendation**: Show warning if checksum differs from last installation
 - **Rationale**: User modifications to submodule files will be lost on update
 - **Future Enhancement**: Offer merge/diff options or backup user modifications
 
 **Example Warning**:
+
 ```
 ⚠ agents/planner.md has been modified locally
   This file will be overwritten with the submodule version
@@ -586,38 +635,49 @@ If user modifies a `.md` file that exists in submodule (e.g., customizes `agents
 ```
 
 ### 2. Manifest File Missing
+
 If `.cursor/.everything-cursor-manifest.json` is deleted:
+
 - Cannot distinguish user files from installed files
 - Cannot determine previous git hash (will reinstall)
-- **Solution**: Treat all existing `.md` files as user files (preserve everything)
+- **Solution**: Treat all existing `.md` files as user files (preserve
+  everything)
 - Only add new files from submodule
 - Create fresh manifest with current git hash
 
-**Impact**: 
+**Impact**:
+
 - No files will be removed (safe)
 - All files updated to match submodule
 - User files preserved
 
 ### 3. Git Hash Unchanged but Files Modified
+
 If submodule git hash hasn't changed but files were manually modified:
+
 - **Current Behavior**: Installation skipped (hash match)
 - **Workaround**: Use `--force` flag (future enhancement)
 - **Detection**: Compare checksums even when hash matches (future enhancement)
 
 ### 4. Directory Rename in Submodule
+
 If a directory is renamed in submodule (e.g., `agents/` → `agent/`):
+
 - Old directory will remain with user files
 - New directory will be created with submodule files
 - Old submodule files removed (tracked in manifest)
 - **Consider**: Add migration guide in release notes
 
 ### 5. Non-.md Files in .cursor/
+
 User creates non-`.md` files in `.cursor/` directories:
+
 - **Behavior**: Completely ignored by script
 - **Rationale**: Script only processes `.md` files
 - **Safety**: User files are safe regardless of extension
 
 **Example**:
+
 ```
 .cursor/
   agents/
@@ -627,12 +687,15 @@ User creates non-`.md` files in `.cursor/` directories:
 ```
 
 ### 6. Submodule Not at Expected Commit
+
 User manually checks out different commit in submodule:
+
 - **Behavior**: Script uses whatever is currently checked out
 - **Git hash tracking**: Manifest records the actual hash
 - **Safety**: No issues, works as expected
 
 **Note**: Users control submodule version via git commands:
+
 ```bash
 cd everything-claude-code
 git checkout v1.2.3  # or specific commit
@@ -643,14 +706,16 @@ pnpm cursor-install  # Uses checked-out version
 ## Testing Scenarios
 
 ### Test Case 1: Fresh Installation
+
 - **Given**: No `.cursor/` directory exists
 - **When**: Run `pnpm cursor-install`
-- **Then**: 
+- **Then**:
   - All `.md` files from submodule copied to `.cursor/`
   - Manifest created with current git hash
   - Summary displayed showing files added
 
 **Expected Output**:
+
 ```
 📦 Installing everything-cursor...
 Processing .md files:
@@ -665,15 +730,17 @@ Summary:
 ```
 
 ### Test Case 2: Re-installation (Git Hash Unchanged)
+
 - **Given**: Installation previously completed
 - **And**: Submodule git hash has not changed
 - **When**: Run `pnpm cursor-install`
-- **Then**: 
+- **Then**:
   - Installation skipped (already up to date)
   - No file operations performed
   - Exit code 0
 
 **Expected Output**:
+
 ```
 📦 Checking everything-cursor...
 ✓ Already up to date
@@ -681,6 +748,7 @@ Summary:
 ```
 
 ### Test Case 3: Update Installation (Git Hash Changed)
+
 - **Given**: Installation previously completed with hash `abc1234`
 - **And**: Submodule updated to hash `def5678`
 - **When**: Run `pnpm cursor-install`
@@ -691,6 +759,7 @@ Summary:
   - Summary shows updates
 
 **Expected Output**:
+
 ```
 📦 Installing everything-cursor...
 🔄 Updating: v1.2.2 → v1.2.3
@@ -705,15 +774,17 @@ Summary:
 ```
 
 ### Test Case 4: User Added Custom .md File
+
 - **Given**: User created `.cursor/agents/my-custom-agent.md`
 - **And**: File is not tracked in manifest
 - **When**: Run `pnpm cursor-install` (with git hash change)
-- **Then**: 
+- **Then**:
   - Custom file preserved (not in manifest)
   - Submodule files updated
   - Custom file not added to manifest
 
 **Expected Output**:
+
 ```
 Processing .md files:
   agents/
@@ -725,23 +796,26 @@ Summary:
 ```
 
 ### Test Case 5: User Added Non-.md File
+
 - **Given**: User created `.cursor/agents/helper.sh`
 - **When**: Run `pnpm cursor-install`
-- **Then**: 
+- **Then**:
   - Non-`.md` file completely ignored
   - No mention in output (not processed)
   - File remains untouched
 
 ### Test Case 6: File Removed from Submodule
+
 - **Given**: Previous installation had `agents/deprecated.md` (in manifest)
 - **And**: File no longer exists in submodule
 - **And**: Git hash changed
 - **When**: Run `pnpm cursor-install`
-- **Then**: 
+- **Then**:
   - `deprecated.md` removed from `.cursor/agents/`
   - Entry removed from manifest
 
 **Expected Output**:
+
 ```
 Cleanup:
   ✗ agents/deprecated.md (removed - deleted from submodule)
@@ -751,17 +825,19 @@ Summary:
 ```
 
 ### Test Case 7: Missing Manifest
+
 - **Given**: `.cursor/.everything-cursor-manifest.json` was deleted
 - **And**: `.cursor/agents/my-custom-agent.md` exists (user file)
 - **And**: `.cursor/agents/planner.md` exists (submodule file)
 - **When**: Run `pnpm cursor-install`
-- **Then**: 
+- **Then**:
   - All existing files treated as user files (preserved)
   - Submodule files updated (overwritten)
   - New manifest created with all submodule files
   - User file not tracked in manifest
 
 ### Test Case 8: Installation Failure with Rollback
+
 - **Given**: Installation in progress
 - **When**: File copy fails (e.g., disk full, permission error)
 - **Then**:
@@ -772,6 +848,7 @@ Summary:
   - Exit with error code
 
 **Expected Output**:
+
 ```
 📦 Installing everything-cursor...
 Processing .md files:
@@ -784,6 +861,7 @@ Processing .md files:
 ```
 
 ### Test Case 9: Manual Rollback
+
 - **Given**: Installation completed with issues
 - **And**: Backup manifest exists
 - **When**: Run `pnpm cursor-install --rollback`
@@ -794,6 +872,7 @@ Processing .md files:
   - Backup manifest becomes current manifest
 
 **Expected Output**:
+
 ```
 ⟳ Rolling back to previous installation...
   Current: v1.2.3
@@ -806,6 +885,7 @@ Processing .md files:
 ```
 
 ### Test Case 10: Submodule at Different Commit
+
 - **Given**: User manually checks out older commit in submodule
 - **When**: Run `pnpm cursor-install`
 - **Then**:
@@ -814,6 +894,7 @@ Processing .md files:
   - Installation proceeds normally
 
 **Setup**:
+
 ```bash
 cd everything-claude-code
 git checkout v1.2.2
@@ -825,46 +906,50 @@ pnpm cursor-install
 
 ### Overview
 
-The rollback mechanism ensures that installation failures don't leave the system in an inconsistent state. Users can also manually rollback to a previous installation.
+The rollback mechanism ensures that installation failures don't leave the system
+in an inconsistent state. Users can also manually rollback to a previous
+installation.
 
 ### Backup Strategy
 
 **Manifest Backup Location**: `.cursor/.everything-cursor-manifest.backup.json`
 
 **When Backups Occur**:
+
 1. Before every installation (automatic)
 2. Before manual rollback (preserve current state)
 
 ```javascript
 function backupManifest(manifest) {
   const backupPath = path.join(CURSOR_DIR, MANIFEST_BACKUP_FILE);
-  
+
   if (!manifest) {
-    console.log(chalk.blue('ℹ No previous manifest to backup'));
+    console.log(chalk.blue("ℹ No previous manifest to backup"));
     return;
   }
-  
+
   try {
     fs.writeFileSync(backupPath, JSON.stringify(manifest, null, 2));
-    console.log(chalk.blue('✓ Manifest backed up'));
+    console.log(chalk.blue("✓ Manifest backed up"));
   } catch (error) {
-    console.warn(chalk.yellow('⚠ Failed to backup manifest'));
-    console.warn('  Proceeding without backup...');
+    console.warn(chalk.yellow("⚠ Failed to backup manifest"));
+    console.warn("  Proceeding without backup...");
   }
 }
 ```
 
 ### Automatic Rollback on Failure
 
-When installation fails (file copy error, disk full, etc.), automatically restore previous state:
+When installation fails (file copy error, disk full, etc.), automatically
+restore previous state:
 
 ```javascript
 async function installWithRollback() {
   const manifest = loadManifest();
   backupManifest(manifest);
-  
+
   const installedFiles = [];
-  
+
   try {
     // Installation process
     for (const file of mdFiles) {
@@ -872,18 +957,17 @@ async function installWithRollback() {
       fs.copyFileSync(srcPath, destPath);
       installedFiles.push({ path: destPath, isNew: !fs.existsSync(destPath) });
     }
-    
+
     // Save new manifest
     saveManifest(newManifest);
-    
+
     // Success - remove backup
     removeBackup();
-    
   } catch (error) {
-    console.error(chalk.red('✗ Installation failed'));
+    console.error(chalk.red("✗ Installation failed"));
     console.error(`  ${error.message}`);
-    console.log(chalk.yellow('\n⟳ Rolling back changes...'));
-    
+    console.log(chalk.yellow("\n⟳ Rolling back changes..."));
+
     // Rollback: Remove newly installed files
     for (const file of installedFiles) {
       try {
@@ -895,11 +979,11 @@ async function installWithRollback() {
         console.warn(chalk.yellow(`  ⚠ Could not remove ${file.path}`));
       }
     }
-    
+
     // Restore previous manifest
     restoreManifest();
-    
-    console.log(chalk.yellow('✓ Rollback complete'));
+
+    console.log(chalk.yellow("✓ Rollback complete"));
     process.exit(1);
   }
 }
@@ -917,26 +1001,28 @@ pnpm cursor-install --rollback
 
 ```javascript
 async function performRollback() {
-  console.log(chalk.cyan('⟳ Rolling back to previous installation...'));
-  
+  console.log(chalk.cyan("⟳ Rolling back to previous installation..."));
+
   // Load backup manifest
   const backupPath = path.join(CURSOR_DIR, MANIFEST_BACKUP_FILE);
   if (!fs.existsSync(backupPath)) {
-    console.error(chalk.red('✗ No backup found'));
-    console.error('  Cannot rollback without backup manifest');
+    console.error(chalk.red("✗ No backup found"));
+    console.error("  Cannot rollback without backup manifest");
     process.exit(1);
   }
-  
-  const backupManifest = JSON.parse(fs.readFileSync(backupPath, 'utf-8'));
+
+  const backupManifest = JSON.parse(fs.readFileSync(backupPath, "utf-8"));
   const currentManifest = loadManifest();
-  
+
   // Display version information
-  const currentVersion = currentManifest?.submoduleGitTag || currentManifest?.submoduleGitHash?.slice(0, 7);
-  const backupVersion = backupManifest.submoduleGitTag || backupManifest.submoduleGitHash?.slice(0, 7);
-  
+  const currentVersion = currentManifest?.submoduleGitTag ||
+    currentManifest?.submoduleGitHash?.slice(0, 7);
+  const backupVersion = backupManifest.submoduleGitTag ||
+    backupManifest.submoduleGitHash?.slice(0, 7);
+
   console.log(chalk.blue(`  Current: ${currentVersion}`));
   console.log(chalk.blue(`  Rollback to: ${backupVersion}`));
-  
+
   // Remove files not in backup
   if (currentManifest) {
     for (const [key, _] of Object.entries(currentManifest.files)) {
@@ -949,12 +1035,12 @@ async function performRollback() {
       }
     }
   }
-  
+
   // Restore files from backup manifest
   for (const [key, fileInfo] of Object.entries(backupManifest.files)) {
     const srcPath = path.join(REPO_ROOT, fileInfo.source);
     const destPath = path.join(CURSOR_DIR, key);
-    
+
     if (fs.existsSync(srcPath)) {
       fs.mkdirSync(path.dirname(destPath), { recursive: true });
       fs.copyFileSync(srcPath, destPath);
@@ -963,21 +1049,21 @@ async function performRollback() {
       console.warn(chalk.yellow(`  ⚠ Source file missing: ${key}`));
     }
   }
-  
+
   // Restore backup manifest as current
   restoreManifest();
-  
-  console.log(chalk.green('\n✅ Rollback complete!'));
+
+  console.log(chalk.green("\n✅ Rollback complete!"));
   console.log(chalk.blue(`  Version: ${backupVersion}`));
 }
 
 function restoreManifest() {
   const backupPath = path.join(CURSOR_DIR, MANIFEST_BACKUP_FILE);
   const manifestPath = path.join(CURSOR_DIR, MANIFEST_FILE);
-  
+
   if (fs.existsSync(backupPath)) {
     fs.copyFileSync(backupPath, manifestPath);
-    console.log(chalk.green('  ✓ Manifest restored'));
+    console.log(chalk.green("  ✓ Manifest restored"));
   }
 }
 ```
@@ -985,11 +1071,13 @@ function restoreManifest() {
 ### Rollback Limitations
 
 **Cannot Rollback:**
+
 - If backup manifest is missing or corrupted
 - If source files in submodule have been deleted (will skip with warning)
 - User-created files (not tracked in manifest) are preserved
 
 **Partial Rollback:**
+
 - If some source files are missing, rollback continues for available files
 - Warnings displayed for missing files
 - System remains in usable state
@@ -1033,6 +1121,7 @@ pnpm cursor-install --force
 Restores the previous installation using backup manifest.
 
 **Behavior**:
+
 - Loads `.everything-cursor-manifest.backup.json`
 - Removes files added in current installation
 - Restores files from previous installation
@@ -1041,6 +1130,7 @@ Restores the previous installation using backup manifest.
 **Usage**: After a problematic update
 
 **Example**:
+
 ```bash
 $ pnpm cursor-install
 # ... installation completes but has issues ...
@@ -1058,11 +1148,13 @@ $ pnpm cursor-install --rollback
 
 ### Overview
 
-Security is critical as the script modifies filesystem contents. Multiple layers of protection prevent common attack vectors.
+Security is critical as the script modifies filesystem contents. Multiple layers
+of protection prevent common attack vectors.
 
 ### 1. Path Traversal Prevention
 
-**Risk**: Malicious file paths (e.g., `../../etc/passwd`) could write outside `.cursor/` directory
+**Risk**: Malicious file paths (e.g., `../../etc/passwd`) could write outside
+`.cursor/` directory
 
 **Implementation**:
 
@@ -1070,12 +1162,12 @@ Security is critical as the script modifies filesystem contents. Multiple layers
 function validatePath(filePath, baseDir) {
   const resolved = path.resolve(baseDir, filePath);
   const normalized = path.normalize(resolved);
-  
+
   // Ensure resolved path starts with base directory
   if (!normalized.startsWith(path.resolve(baseDir))) {
     throw new Error(`Path traversal detected: ${filePath}`);
   }
-  
+
   return normalized;
 }
 
@@ -1095,14 +1187,14 @@ fs.copyFileSync(srcPath, destPath);
 ```javascript
 function isMdFile(filePath) {
   const ext = path.extname(filePath).toLowerCase();
-  return ext === '.md';
+  return ext === ".md";
 }
 
 function getMdFiles(dir) {
   const files = [];
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     const fullPath = path.join(dir, entry.name);
-    
+
     if (entry.isDirectory()) {
       files.push(...getMdFiles(fullPath));
     } else if (entry.isFile() && isMdFile(fullPath)) {
@@ -1115,6 +1207,7 @@ function getMdFiles(dir) {
 ```
 
 **Protection**:
+
 - No executable files (`.sh`, `.exe`, etc.)
 - No script files (`.js`, `.py`, etc.)
 - Only documentation files (`.md`)
@@ -1134,7 +1227,7 @@ function getMdFiles(dir) {
       console.warn(chalk.yellow(`⚠ Skipping symlink: ${entry.name}`));
       continue;
     }
-    
+
     // Process only regular files and directories
     if (entry.isFile() && isMdFile(entry.name)) {
       files.push(path.join(dir, entry.name));
@@ -1161,43 +1254,49 @@ function loadManifest() {
     if (!fs.existsSync(manifestPath)) {
       return null;
     }
-    
-    const content = fs.readFileSync(manifestPath, 'utf-8');
+
+    const content = fs.readFileSync(manifestPath, "utf-8");
     const manifest = JSON.parse(content);
-    
+
     // Validate required fields
-    if (!manifest.version || typeof manifest.files !== 'object') {
-      throw new Error('Invalid manifest structure');
+    if (!manifest.version || typeof manifest.files !== "object") {
+      throw new Error("Invalid manifest structure");
     }
-    
+
     // Validate git hash format (40 hex chars)
-    if (manifest.submoduleGitHash && !/^[a-f0-9]{40}$/i.test(manifest.submoduleGitHash)) {
-      throw new Error('Invalid git hash format');
+    if (
+      manifest.submoduleGitHash &&
+      !/^[a-f0-9]{40}$/i.test(manifest.submoduleGitHash)
+    ) {
+      throw new Error("Invalid git hash format");
     }
-    
+
     // Validate file entries
     for (const [key, value] of Object.entries(manifest.files)) {
       if (!value.source || !value.installedAt) {
         throw new Error(`Invalid file entry: ${key}`);
       }
-      
+
       // Ensure all tracked files are .md
-      if (!key.endsWith('.md')) {
-        console.warn(chalk.yellow(`⚠ Non-.md file in manifest: ${key} (will be ignored)`));
+      if (!key.endsWith(".md")) {
+        console.warn(
+          chalk.yellow(`⚠ Non-.md file in manifest: ${key} (will be ignored)`),
+        );
       }
     }
-    
+
     return manifest;
   } catch (error) {
-    console.warn(chalk.yellow('⚠ Manifest validation failed'));
+    console.warn(chalk.yellow("⚠ Manifest validation failed"));
     console.warn(`  ${error.message}`);
-    console.warn('  Treating as fresh installation');
+    console.warn("  Treating as fresh installation");
     return null;
   }
 }
 ```
 
 **Protection**:
+
 - JSON parse errors caught
 - Required fields validated
 - Git hash format validated
@@ -1213,20 +1312,20 @@ function loadManifest() {
 function validateSubmodule() {
   // Ensure submodule path exists
   if (!fs.existsSync(SUBMODULE_PATH)) {
-    throw new Error('Submodule directory not found');
+    throw new Error("Submodule directory not found");
   }
-  
+
   // Ensure it's a git repository
-  const gitDir = path.join(SUBMODULE_PATH, '.git');
+  const gitDir = path.join(SUBMODULE_PATH, ".git");
   if (!fs.existsSync(gitDir)) {
-    throw new Error('Submodule is not a git repository');
+    throw new Error("Submodule is not a git repository");
   }
-  
+
   // Ensure path is within project
   const resolved = path.resolve(SUBMODULE_PATH);
   const repoRoot = path.resolve(REPO_ROOT);
   if (!resolved.startsWith(repoRoot)) {
-    throw new Error('Submodule path outside repository');
+    throw new Error("Submodule path outside repository");
   }
 }
 ```
@@ -1242,22 +1341,26 @@ function validateSubmodule() {
 ### Security Checklist
 
 Before installation:
+
 - ✅ Validate submodule path and git repository
 - ✅ Backup existing manifest
 - ✅ Filter for `.md` files only
 
 During installation:
+
 - ✅ Validate all destination paths (no traversal)
 - ✅ Ignore symlinks
 - ✅ Track installed files in manifest
 
 After installation:
+
 - ✅ Validate and save new manifest
 - ✅ Provide rollback option on failure
 
 ## Migration Path
 
-For users upgrading from old script (destructive) to new script (preservation-based):
+For users upgrading from old script (destructive) to new script
+(preservation-based):
 
 ### First Run After Upgrade
 
@@ -1267,6 +1370,7 @@ For users upgrading from old script (destructive) to new script (preservation-ba
 4. **Git Hash Recorded**: Enables future update detection
 
 **Migration Output**:
+
 ```
 📦 Installing everything-cursor...
 ℹ No previous manifest found (first run or upgrade)
@@ -1289,13 +1393,13 @@ Summary:
 
 Users should be aware of these changes:
 
-| Behavior | Old Script | New Script |
-|----------|-----------|------------|
-| User files | ❌ Deleted | ✅ Preserved |
-| Update detection | ❌ None (always runs) | ✅ Git hash tracking |
-| File types | All files | Only `.md` files |
-| Rollback | ❌ Not supported | ✅ Supported |
-| Error recovery | ❌ Manual cleanup | ✅ Automatic rollback |
+| Behavior         | Old Script            | New Script            |
+| ---------------- | --------------------- | --------------------- |
+| User files       | ❌ Deleted            | ✅ Preserved          |
+| Update detection | ❌ None (always runs) | ✅ Git hash tracking  |
+| File types       | All files             | Only `.md` files      |
+| Rollback         | ❌ Not supported      | ✅ Supported          |
+| Error recovery   | ❌ Manual cleanup     | ✅ Automatic rollback |
 
 ### Recommendation for Users
 
@@ -1303,58 +1407,72 @@ After upgrading to new script:
 
 1. **Review existing files**: Check `.cursor/` for any files you want to keep
 2. **First installation**: Will preserve all existing files (safe)
-3. **Verify**: Check manifest was created (`.cursor/.everything-cursor-manifest.json`)
+3. **Verify**: Check manifest was created
+   (`.cursor/.everything-cursor-manifest.json`)
 4. **Future updates**: Will use git hash tracking (only update when needed)
 
 ### Backward Compatibility
 
 **No breaking changes**:
+
 - Script works with or without existing manifest
 - Preserves all existing files on first run
 - Creates manifest for future runs
 
 **Benefits**:
+
 - Safe upgrade path
 - No manual migration steps required
 - User files never lost
 
 ## Success Metrics
 
-The implementation is considered successful when all of the following criteria are met:
+The implementation is considered successful when all of the following criteria
+are met:
 
 ### Functional Requirements
+
 - ✅ **User files are never deleted**: Files not in manifest remain untouched
-- ✅ **Submodule updates are applied correctly**: `.md` files updated when git hash changes
-- ✅ **Deleted submodule files are cleaned up**: Files removed from submodule are removed from `.cursor/`
+- ✅ **Submodule updates are applied correctly**: `.md` files updated when git
+  hash changes
+- ✅ **Deleted submodule files are cleaned up**: Files removed from submodule
+  are removed from `.cursor/`
 - ✅ **Installation is idempotent**: Multiple runs produce consistent results
 - ✅ **Git hash tracking works**: Installation skipped when hash unchanged
 - ✅ **Only .md files processed**: Non-markdown files ignored completely
 
 ### User Experience
-- ✅ **Clear feedback on what changed**: Color-coded output with summary statistics
+
+- ✅ **Clear feedback on what changed**: Color-coded output with summary
+  statistics
 - ✅ **Version information displayed**: Git hash/tag shown in output
 - ✅ **Progress visible**: File-by-file feedback during installation
 - ✅ **Error messages are helpful**: Clear guidance on how to resolve issues
 
 ### Reliability
+
 - ✅ **Rollback on failure**: Automatic recovery when installation fails
 - ✅ **Manual rollback available**: Users can revert to previous version
 - ✅ **Manifest backup created**: Every installation backs up previous manifest
 - ✅ **Corrupted manifest handled**: Graceful degradation when manifest invalid
 
 ### Security
+
 - ✅ **Path traversal prevented**: All paths validated before file operations
 - ✅ **Symlinks ignored**: No symlink following or creation
 - ✅ **File type restricted**: Only `.md` files processed
 - ✅ **Git repository validated**: Submodule existence and validity checked
 
 ### Performance
-- ✅ **Unnecessary updates avoided**: Git hash comparison skips redundant installations
+
+- ✅ **Unnecessary updates avoided**: Git hash comparison skips redundant
+  installations
 - ✅ **Fast when up to date**: Minimal operations when no changes needed
 
 ### Validation Tests
 
 All test cases in [Testing Scenarios](#testing-scenarios) must pass:
+
 1. ✅ Fresh installation
 2. ✅ Re-installation with unchanged hash (skip)
 3. ✅ Update installation with changed hash

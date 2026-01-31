@@ -4,18 +4,16 @@
   "description": "Cursor settings created from affaan-m/everything-claude-code",
   "type": "module",
   "scripts": {
-    "cursor-install": "zx scripts/cursor-install.mjs",
-    "cursor-uninstall": "zx scripts/cursor-uninstall.mjs"
+    "cursor-install": "node scripts/cursor-install.mjs",
+    "cursor-uninstall": "node scripts/cursor-uninstall.mjs"
   },
   "keywords": [
     "cursor",
     "ide",
     "ai",
-    "everything-claude-code"
+    "everything-claude-code",
+    "everything-cursor"
   ],
   "author": "",
-  "license": "MIT",
-  "devDependencies": {
-    "zx": "^8.2.4"
-  }
+  "license": "MIT"
 }
