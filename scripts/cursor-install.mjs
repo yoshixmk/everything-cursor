@@ -19,6 +19,7 @@ import crypto from "node:crypto";
 import os from "node:os";
 import readline from "node:readline";
 import { execSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 
 // ANSI color codes for terminal output
 const colors = {
@@ -44,7 +45,7 @@ const color = {
 };
 
 // Configuration
-const __filename = new URL(import.meta.url).pathname;
+const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const REPO_ROOT = process.cwd();
 

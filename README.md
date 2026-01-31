@@ -37,6 +37,9 @@ git submodule update --init
 
 ```bash
 npm install
+# or if using pnpm:
+# pnpm install
+
 npm run cursor-install
 ```
 
@@ -211,6 +214,30 @@ For detailed technical specifications and implementation details, see:
 
 - [`docs/INSTALL_SPEC.md`](docs/INSTALL_SPEC.md) - Complete installation script
   specification
+
+## Publishing (For Maintainers)
+
+To publish a new version to npm:
+
+1. Update the version in `package.json`
+2. Update the submodule to the latest version:
+   ```bash
+   git submodule update --remote
+   ```
+3. Commit the changes
+4. Create and push a git tag:
+   ```bash
+   git tag v0.0.2
+   git push origin v0.0.2
+   ```
+5. Publish to npm:
+   ```bash
+   npm publish
+   ```
+
+**Note**: The package includes a bundled copy of the `everything-claude-code`
+submodule content (agents, skills, commands, and rules directories only) to
+ensure it works when installed via npm without requiring git submodules.
 
 ## Features
 
