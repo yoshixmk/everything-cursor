@@ -38,6 +38,13 @@ everything-claude-code/docs/
 .cursor/
 docs/
 
+# TypeScript source files (only ship compiled JS)
+mod.ts
+cli.ts
+tsconfig.json
+*.ts
+!dist/**/*.d.ts
+
 # Package manager files
 pnpm-lock.yaml
 package-lock.json

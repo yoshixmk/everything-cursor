@@ -10,18 +10,24 @@ Cursor settings created from
 
 ### Using Deno
 
-Install via [JSR](https://jsr.io/@yoshixmk/everything-cursor):
+You can use the library API in your Deno code:
 
-```bash
-deno install -Agf jsr:@yoshixmk/everything-cursor/cli
-everything-cursor install
+```typescript
+import { install, uninstall } from "jsr:@yoshixmk/everything-cursor";
+
+// Install to local .cursor directory
+await install({ location: "local" });
+
+// Install to home .cursor directory
+await install({ location: "home" });
+
+// Uninstall
+await uninstall();
 ```
 
-Or run directly without installation:
-
-```bash
-deno run -A jsr:@yoshixmk/everything-cursor/cli install
-```
+**Note:** The CLI command (`deno install jsr:@yoshixmk/everything-cursor/cli`)
+is not yet supported due to script resolution limitations. Please use the
+library API or clone the repository to run the installation scripts directly.
 
 ### Using npm
 
@@ -37,6 +43,18 @@ Or run directly without installation:
 ```bash
 npx @jsr/yoshixmk__everything-cursor install
 ```
+
+### From Repository (Recommended)
+
+Clone the repository and run the installation script directly:
+
+```bash
+git clone https://github.com/yoshixmk/everything-cursor.git
+cd everything-cursor
+node scripts/cursor-install.mjs
+```
+
+This method gives you full control and avoids any module resolution issues.
 
 ### Installation Details
 
@@ -374,6 +392,8 @@ This restores the previous installation state.
 
 For detailed technical specifications and implementation details, see:
 
+- [`docs/BUILD_SPEC.md`](docs/BUILD_SPEC.md) - Build process and npm
+  distribution specification
 - [`docs/INSTALL_SPEC.md`](docs/INSTALL_SPEC.md) - Complete installation script
   specification
 
@@ -425,7 +445,7 @@ Update the version in `jsr.json`:
 
 ```bash
 # Edit jsr.json to update version
-# Example: "version": "0.0.2"
+# Example: "version": "0.0.3"
 ```
 
 Update the submodule to the latest version:
@@ -438,14 +458,14 @@ git submodule update --remote
 
 ```bash
 git add jsr.json everything-claude-code
-git commit -m "Bump version to 0.0.2"
+git commit -m "Bump version to 0.0.3"
 ```
 
 ### 3. Create and push a git tag
 
 ```bash
-git tag v0.0.2
-git push origin v0.0.2
+git tag v0.0.3
+git push origin v0.0.3
 ```
 
 ### 4. Publish to JSR

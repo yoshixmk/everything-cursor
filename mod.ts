@@ -163,7 +163,12 @@ export function getPackageInfo(): PackageInfo {
  */
 function getScriptPath(scriptName: string): string {
   const moduleDir = path.dirname(fileURLToPath(import.meta.url));
-  return path.join(moduleDir, "scripts", scriptName);
+  // When built to dist/, scripts are in ../scripts/
+  // When running from source, scripts are in ./scripts/
+  const scriptsDir = moduleDir.endsWith("dist")
+    ? path.join(moduleDir, "..", "scripts")
+    : path.join(moduleDir, "scripts");
+  return path.join(scriptsDir, scriptName);
 }
 
 /**
@@ -186,7 +191,7 @@ function getScriptPath(scriptName: string): string {
 export async function install(options: InstallOptions = {}): Promise<void> {
   // Keep async for API compatibility
   await Promise.resolve();
-  
+
   const { location = "ask", silent = false, cwd = process.cwd() } = options;
 
   const scriptPath = getScriptPath("cursor-install.mjs");
@@ -231,7 +236,7 @@ export async function install(options: InstallOptions = {}): Promise<void> {
 export async function uninstall(options: UninstallOptions = {}): Promise<void> {
   // Keep async for API compatibility
   await Promise.resolve();
-  
+
   const { silent = false, cwd = process.cwd() } = options;
 
   const scriptPath = getScriptPath("cursor-uninstall.mjs");
@@ -336,8 +341,8 @@ export function getInstalledPaths(
       ? path.join(cwd, ".cursor")
       : path.join(os.homedir(), ".cursor");
 
-    return Object.entries(manifest.files || {}).map((
-      [key, fileInfo]: [string, ManifestFileInfo],
+    return Object.entries<ManifestFileInfo>(manifest.files || {}).map((
+      [key, fileInfo],
     ) => ({
       path: path.join(cursorDir, key),
       relativePath: key,

@@ -1,28 +1,32 @@
 {
   "name": "everything-cursor",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Cursor settings created from affaan-m/everything-cursor",
   "type": "module",
   "exports": {
     ".": {
-      "import": "./mod.ts",
-      "types": "./mod.ts"
+      "import": "./dist/mod.js",
+      "types": "./dist/mod.d.ts"
     },
     "./cli": {
-      "import": "./cli.ts",
-      "types": "./cli.ts"
+      "import": "./dist/cli.js",
+      "types": "./dist/cli.d.ts"
     }
   },
   "bin": {
-    "everything-cursor": "./cli.ts"
+    "everything-cursor": "./dist/cli.js"
   },
   "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build",
     "dev:install": "node scripts/cursor-install.mjs",
     "dev:uninstall": "node scripts/cursor-uninstall.mjs"
   },
   "files": [
-    "mod.ts",
-    "cli.ts",
+    "dist/**/*.js",
+    "dist/**/*.d.ts",
+    "dist/**/*.d.ts.map",
+    "dist/**/*.js.map",
     "scripts/*.mjs",
     "everything-claude-code/agents/",
     "everything-claude-code/skills/",
@@ -54,6 +58,8 @@
     "node": ">=18.0.0"
   },
   "devDependencies": {
-    "@types/node": "^18.0.0"
+    "@types/deno": "^2.5.0",
+    "@types/node": "^18.0.0",
+    "typescript": "^5.7.0"
   }
 }
