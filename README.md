@@ -29,20 +29,40 @@ await uninstall();
 is not yet supported due to script resolution limitations. Please use the
 library API or clone the repository to run the installation scripts directly.
 
+### Using pnpm
+
+Install from JSR:
+
+```bash
+pnpm add jsr:@yoshixmk/everything-cursor
+```
+
+Then use the library API in your code:
+
+```typescript
+import { install, uninstall } from "@yoshixmk/everything-cursor";
+
+await install({ location: "local" });
+```
+
 ### Using npm
 
-Install globally via JSR:
+Add the package to your project:
 
 ```bash
-npm install -g @jsr/yoshixmk__everything-cursor
-everything-cursor install
+npx jsr add @yoshixmk/everything-cursor
 ```
 
-Or run directly without installation:
+Then use the library API in your code:
 
-```bash
-npx @jsr/yoshixmk__everything-cursor install
+```javascript
+const { install, uninstall } = require("@yoshixmk/everything-cursor");
+
+install({ location: "local" });
 ```
+
+**Note:** CLI commands via npm/pnpm are not yet supported. Please use the
+library API or clone the repository to run the installation scripts directly.
 
 ### From Repository (Recommended)
 
@@ -88,10 +108,24 @@ automatically preserved.
 
 ## Uninstallation
 
-To remove the installed Cursor settings:
+To remove the installed Cursor settings, use the library API:
+
+```typescript
+// Deno
+import { uninstall } from "jsr:@yoshixmk/everything-cursor";
+await uninstall();
+```
+
+```javascript
+// Node.js
+const { uninstall } = require("@yoshixmk/everything-cursor");
+uninstall();
+```
+
+Or from the repository:
 
 ```bash
-everything-cursor uninstall
+node scripts/cursor-uninstall.mjs
 ```
 
 This will remove only the files that were installed from the submodule (tracked
@@ -102,15 +136,20 @@ removed during uninstallation.
 
 ## Programmatic Usage
 
-You can also use everything-cursor programmatically in your Node.js or
+You can also use everything-cursor programmatically in your Node.js, Deno, or
 TypeScript projects.
 
 ### Installation
 
 ```bash
-npm install @yoshixmk/everything-cursor
-# or
-yarn add @yoshixmk/everything-cursor
+# pnpm
+pnpm add jsr:@yoshixmk/everything-cursor
+
+# npm
+npx jsr add @yoshixmk/everything-cursor
+
+# Deno
+deno add @yoshixmk/everything-cursor
 ```
 
 ### API Reference
@@ -445,7 +484,7 @@ Update the version in `jsr.json`:
 
 ```bash
 # Edit jsr.json to update version
-# Example: "version": "0.0.3"
+# Example: "version": "0.0.4"
 ```
 
 Update the submodule to the latest version:
@@ -458,14 +497,14 @@ git submodule update --remote
 
 ```bash
 git add jsr.json everything-claude-code
-git commit -m "Bump version to 0.0.3"
+git commit -m "Bump version to 0.0.4"
 ```
 
 ### 3. Create and push a git tag
 
 ```bash
-git tag v0.0.3
-git push origin v0.0.3
+git tag v0.0.4
+git push origin v0.0.4
 ```
 
 ### 4. Publish to JSR

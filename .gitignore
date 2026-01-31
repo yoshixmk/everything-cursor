@@ -138,5 +138,9 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
-# Cursor IDE settings (installed by cursor-install script)
-.cursor/
+# Cursor IDE settings (installed by pnpm devv:install script)
+.cursor/**/*
+!.cursor/commands/
+.cursor/commands/*
+!.cursor/commands/test-package.md
+!.cursor/commands/version-bump.md
