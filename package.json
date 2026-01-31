@@ -1,0 +1,19 @@
+{
+  "name": "everything-cursor",
+  "version": "0.0.1",
+  "description": "Cursor settings created from affaan-m/everything-claude-code",
+  "type": "module",
+  "scripts": {
+    "cursor-install": "node scripts/cursor-install.mjs",
+    "cursor-uninstall": "node scripts/cursor-uninstall.mjs"
+  },
+  "keywords": [
+    "cursor",
+    "ide",
+    "ai",
+    "everything-claude-code",
+    "everything-cursor"
+  ],
+  "author": "yoshixmk",
+  "license": "MIT"
+}
