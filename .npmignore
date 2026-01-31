@@ -1,0 +1,63 @@
+# Git files
+.git/
+.gitignore
+.gitmodules
+
+# Exclude git data and dev files from submodule
+everything-claude-code/.git
+everything-claude-code/.github/
+everything-claude-code/node_modules/
+everything-claude-code/tests/
+everything-claude-code/examples/
+everything-claude-code/assets/
+everything-claude-code/.markdownlint.json
+everything-claude-code/commitlint.config.js
+everything-claude-code/eslint.config.js
+everything-claude-code/package.json
+everything-claude-code/package-lock.json
+everything-claude-code/CONTRIBUTING.md
+everything-claude-code/.claude/
+everything-claude-code/.claude-plugin/
+everything-claude-code/scripts/ci/
+everything-claude-code/scripts/lib/
+everything-claude-code/scripts/setup-package-manager.js
+everything-claude-code/scripts/skill-create-output.js
+everything-claude-code/schemas/
+everything-claude-code/hooks/
+everything-claude-code/plugins/
+everything-claude-code/mcp-configs/
+everything-claude-code/contexts/
+everything-claude-code/the-longform-guide.md
+everything-claude-code/the-shortform-guide.md
+everything-claude-code/README.md
+everything-claude-code/README.zh-CN.md
+everything-claude-code/LICENSE
+everything-claude-code/docs/
+
+# Development files
+.cursor/
+docs/
+
+# Package manager files
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+
+# CI/CD
+.github/
+
+# Logs
+logs/
+*.log
+
+# Environment files
+.env
+.env.*
+
+# IDE
+.vscode/
+.idea/
+
+# Temporary files
+*.tmp
+*.temp

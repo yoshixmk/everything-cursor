@@ -44,8 +44,17 @@ const color = {
 };
 
 // Configuration
+const __filename = new URL(import.meta.url).pathname;
+const __dirname = path.dirname(__filename);
 const REPO_ROOT = process.cwd();
-const SUBMODULE_PATH = path.join(REPO_ROOT, "everything-claude-code");
+
+// Determine if we're running from npm installation or source
+const isNpmInstall = __dirname.includes("node_modules");
+const PACKAGE_ROOT = isNpmInstall
+  ? path.resolve(__dirname, "..")
+  : REPO_ROOT;
+
+const SUBMODULE_PATH = path.join(PACKAGE_ROOT, "everything-claude-code");
 const CURSOR_DIR_LOCAL = path.join(REPO_ROOT, ".cursor");
 const CURSOR_DIR_HOME = path.join(os.homedir(), ".cursor");
 const MANIFEST_FILE = ".everything-cursor-manifest.json";
@@ -190,7 +199,7 @@ async function installWithPreservation() {
 
         // Add to manifest
         newManifest.files[manifestKey] = {
-          source: path.relative(REPO_ROOT, file),
+          source: path.relative(PACKAGE_ROOT, file),
           installedAt: new Date().toISOString(),
           checksum: calculateChecksum(file),
         };
@@ -334,7 +343,7 @@ function performRollback() {
 
   // Restore files from backup manifest
   for (const [key, fileInfo] of Object.entries(backupManifest.files)) {
-    const srcPath = path.join(REPO_ROOT, fileInfo.source);
+    const srcPath = path.join(PACKAGE_ROOT, fileInfo.source);
     const destPath = path.join(installDir, key);
 
     if (fs.existsSync(srcPath)) {
@@ -418,22 +427,30 @@ function getInstallDir(selectedLocation) {
 function validateSubmodule() {
   if (!fs.existsSync(SUBMODULE_PATH)) {
     console.error(color.red("✗ Submodule directory not found"));
-    console.error("  Please run: git submodule update --init");
+    if (isNpmInstall) {
+      console.error("  Package installation appears to be corrupted");
+      console.error("  Try reinstalling: npm install -g everything-cursor");
+    } else {
+      console.error("  Please run: git submodule update --init");
+    }
     process.exit(1);
   }
 
-  const gitDir = path.join(SUBMODULE_PATH, ".git");
-  if (!fs.existsSync(gitDir)) {
-    console.error(color.red("✗ Submodule is not a git repository"));
-    console.error("  Please run: git submodule update --init");
-    process.exit(1);
-  }
+  // Only check for .git directory when running from source (not npm install)
+  if (!isNpmInstall) {
+    const gitDir = path.join(SUBMODULE_PATH, ".git");
+    if (!fs.existsSync(gitDir)) {
+      console.error(color.red("✗ Submodule is not a git repository"));
+      console.error("  Please run: git submodule update --init");
+      process.exit(1);
+    }
 
-  // Ensure path is within project
-  const resolved = path.resolve(SUBMODULE_PATH);
-  const repoRoot = path.resolve(REPO_ROOT);
-  if (!resolved.startsWith(repoRoot)) {
-    throw new Error("Submodule path outside repository");
+    // Ensure path is within project (only for source installations)
+    const resolved = path.resolve(SUBMODULE_PATH);
+    const repoRoot = path.resolve(REPO_ROOT);
+    if (!resolved.startsWith(repoRoot)) {
+      throw new Error("Submodule path outside repository");
+    }
   }
 }
 
@@ -441,6 +458,18 @@ function validateSubmodule() {
  * Get git commit hash from submodule
  */
 function getGitHash() {
+  // For npm installations, use a static hash based on package version
+  if (isNpmInstall) {
+    // Read package.json to get version
+    const packageJsonPath = path.join(PACKAGE_ROOT, "package.json");
+    try {
+      const pkg = JSON.parse(fs.readFileSync(packageJsonPath, "utf-8"));
+      return `npm-${pkg.version}`;
+    } catch (_error) {
+      return "npm-unknown";
+    }
+  }
+
   try {
     const result = execSync(`git -C ${SUBMODULE_PATH} rev-parse HEAD`, {
       encoding: "utf-8",
@@ -459,6 +488,17 @@ function getGitHash() {
  * Get git tag from submodule (if available)
  */
 function getGitTag() {
+  // For npm installations, use package version
+  if (isNpmInstall) {
+    const packageJsonPath = path.join(PACKAGE_ROOT, "package.json");
+    try {
+      const pkg = JSON.parse(fs.readFileSync(packageJsonPath, "utf-8"));
+      return `v${pkg.version}`;
+    } catch (_error) {
+      return undefined;
+    }
+  }
+
   try {
     const result = execSync(
       `git -C ${SUBMODULE_PATH} describe --tags --exact-match 2>/dev/null || echo ""`,

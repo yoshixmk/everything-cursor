@@ -3,17 +3,43 @@
   "version": "0.0.1",
   "description": "Cursor settings created from affaan-m/everything-claude-code",
   "type": "module",
+  "bin": {
+    "cursor-install": "./scripts/cursor-install.mjs",
+    "cursor-uninstall": "./scripts/cursor-uninstall.mjs"
+  },
   "scripts": {
     "cursor-install": "node scripts/cursor-install.mjs",
     "cursor-uninstall": "node scripts/cursor-uninstall.mjs"
   },
+  "files": [
+    "scripts/*.mjs",
+    "everything-claude-code/agents/",
+    "everything-claude-code/skills/",
+    "everything-claude-code/commands/",
+    "everything-claude-code/rules/",
+    "LICENSE",
+    "README.md"
+  ],
   "keywords": [
     "cursor",
     "ide",
     "ai",
     "everything-claude-code",
-    "everything-cursor"
+    "everything-cursor",
+    "cursor-settings",
+    "ai-development"
   ],
   "author": "yoshixmk",
-  "license": "MIT"
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yoshixmk/everything-cursor.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yoshixmk/everything-cursor/issues"
+  },
+  "homepage": "https://github.com/yoshixmk/everything-cursor#readme",
+  "engines": {
+    "node": ">=18.0.0"
+  }
 }

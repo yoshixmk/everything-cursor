@@ -5,10 +5,25 @@ Cursor settings created from
 
 ## Installation
 
-### 1. Clone this repository with submodules
+### Option 1: Install from npm (Recommended)
 
 ```bash
-git clone --recursive <repository-url>
+npm install -g everything-cursor
+cursor-install
+```
+
+Or using npx without global installation:
+
+```bash
+npx everything-cursor cursor-install
+```
+
+### Option 2: Install from source
+
+#### 1. Clone this repository with submodules
+
+```bash
+git clone --recursive https://github.com/yoshixmk/everything-cursor.git
 cd everything-cursor
 ```
 
@@ -18,10 +33,11 @@ Or if already cloned:
 git submodule update --init
 ```
 
-### 2. Install dependencies and Cursor settings
+#### 2. Install dependencies and Cursor settings
 
 ```bash
-pnpm install
+npm install
+npm run cursor-install
 ```
 
 On **first run**, you'll be prompted to choose an installation location:
@@ -57,7 +73,13 @@ automatically preserved.
 To remove the installed Cursor settings:
 
 ```bash
-pnpm cursor-uninstall
+cursor-uninstall
+```
+
+Or if installed from source:
+
+```bash
+npm run cursor-uninstall
 ```
 
 This will remove only the files that were installed from the submodule (tracked
@@ -107,7 +129,7 @@ echo "# My Custom Agent" > .cursor/agents/my-agent.md
 echo "# My Custom Agent" > ~/.cursor/agents/my-agent.md
 
 # This file will be preserved during updates
-pnpm cursor-install
+cursor-install
 ```
 
 **File Types**:
@@ -122,12 +144,12 @@ To change where the settings are installed:
 
 1. Uninstall current settings:
    ```bash
-   pnpm cursor-uninstall
+   cursor-uninstall
    ```
 
 2. Run install again to choose a new location:
    ```bash
-   pnpm cursor-install
+   cursor-install
    ```
 
 The installation prompt will appear again, allowing you to select a different
@@ -148,11 +170,18 @@ The installation script only manages `.md` files that come from the
 
 ### Update to Latest Version
 
-To update to the latest settings from everything-claude-code:
+**If installed via npm:**
+
+```bash
+npm update -g everything-cursor
+cursor-install
+```
+
+**If installed from source:**
 
 ```bash
 git submodule update --remote
-pnpm cursor-install
+npm run cursor-install
 ```
 
 **Smart Update Detection**: The installation script tracks the git commit hash
@@ -160,7 +189,7 @@ of the submodule. If the submodule hasn't changed, the installation is
 automatically skipped.
 
 ```bash
-$ pnpm cursor-install
+$ cursor-install
 📦 Checking everything-cursor...
 ✓ Already up to date
   Submodule version: v1.2.3 (abc1234)
@@ -171,7 +200,7 @@ $ pnpm cursor-install
 If an update causes issues, you can easily rollback:
 
 ```bash
-pnpm cursor-install --rollback
+cursor-install --rollback
 ```
 
 This restores the previous installation state.
