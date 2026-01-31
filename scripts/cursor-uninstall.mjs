@@ -13,6 +13,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
+import os from "node:os";
 
 // ANSI color codes for terminal output
 const colors = {
@@ -38,30 +39,37 @@ const color = {
 };
 
 const REPO_ROOT = process.cwd();
-const CURSOR_DIR = path.join(REPO_ROOT, ".cursor");
+const CURSOR_DIR_LOCAL = path.join(REPO_ROOT, ".cursor");
+const CURSOR_DIR_HOME = path.join(os.homedir(), ".cursor");
 const MANIFEST_FILE = ".everything-cursor-manifest.json";
 const MANIFEST_BACKUP_FILE = ".everything-cursor-manifest.backup.json";
 
 console.log(color.blue("🗑️  Uninstalling everything-cursor settings...\n"));
 
-// Check if .cursor directory exists
-if (!fs.existsSync(CURSOR_DIR)) {
-  console.log(
-    color.yellow("⚠ .cursor directory not found. Nothing to uninstall."),
-  );
-  process.exit(0);
+// Find manifest (check local first, then home)
+let manifestPath = path.join(CURSOR_DIR_LOCAL, MANIFEST_FILE);
+let cursorDir = CURSOR_DIR_LOCAL;
+let location = "local";
+
+if (!fs.existsSync(manifestPath)) {
+  manifestPath = path.join(CURSOR_DIR_HOME, MANIFEST_FILE);
+  cursorDir = CURSOR_DIR_HOME;
+  location = "home";
 }
 
-// Load manifest
-const manifestPath = path.join(CURSOR_DIR, MANIFEST_FILE);
 if (!fs.existsSync(manifestPath)) {
   console.log(color.yellow("⚠ No manifest found."));
+  console.log(
+    color.yellow("  Checked both local (.cursor/) and home (~/.cursor/)"),
+  );
   console.log(color.yellow("  Cannot determine which files were installed."));
   console.log(
-    color.yellow("  To remove everything, manually delete .cursor/ directory."),
+    color.yellow("  To remove everything, manually delete the directory."),
   );
   process.exit(1);
 }
+
+console.log(color.blue(`Found installation at: ${location}`));
 
 let manifest;
 try {
@@ -88,7 +96,7 @@ let errorCount = 0;
 
 // Remove tracked files
 for (const [key] of Object.entries(manifest.files)) {
-  const filePath = path.join(CURSOR_DIR, key);
+  const filePath = path.join(cursorDir, key);
 
   try {
     if (fs.existsSync(filePath)) {
@@ -109,7 +117,7 @@ for (const [key] of Object.entries(manifest.files)) {
 console.log(color.cyan("\nCleaning up empty directories..."));
 const directories = ["agents", "skills", "commands", "rules"];
 for (const dir of directories) {
-  const dirPath = path.join(CURSOR_DIR, dir);
+  const dirPath = path.join(cursorDir, dir);
   if (fs.existsSync(dirPath)) {
     removeEmptyDirectories(dirPath);
   }
@@ -123,7 +131,7 @@ try {
     console.log(color.green(`  ✓ Removed ${MANIFEST_FILE}`));
   }
 
-  const backupPath = path.join(CURSOR_DIR, MANIFEST_BACKUP_FILE);
+  const backupPath = path.join(cursorDir, MANIFEST_BACKUP_FILE);
   if (fs.existsSync(backupPath)) {
     fs.unlinkSync(backupPath);
     console.log(color.green(`  ✓ Removed ${MANIFEST_BACKUP_FILE}`));
@@ -150,7 +158,11 @@ if (errorCount > 0) {
 } else {
   console.log(color.bold(color.green("\n✅ Uninstallation complete!")));
   console.log(
-    color.blue("  User-created files in .cursor/ have been preserved"),
+    color.blue(
+      `  User-created files in ${
+        location === "local" ? ".cursor/" : "~/.cursor/"
+      } have been preserved`,
+    ),
   );
 }
 

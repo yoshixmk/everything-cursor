@@ -1483,3 +1483,169 @@ All test cases in [Testing Scenarios](#testing-scenarios) must pass:
 8. ✅ Installation failure rollback
 9. ✅ Manual rollback
 10. ✅ Submodule at different commit
+
+## Home Directory Installation
+
+### Overview
+
+The installation script supports installing to either:
+
+- **local**: Project-local directory (`{project}/.cursor/`)
+- **home**: Home directory (`~/.cursor/`)
+
+### Installation Location Selection
+
+On **first run** (when no manifest exists), the user is prompted to select an
+installation location:
+
+```
+📍 Select installation location:
+  1) local  - Project local (.cursor/)
+  2) home   - Home directory (~/.cursor/)
+  3) cancel - Cancel installation
+
+Enter your choice (1-3):
+```
+
+The selected location is saved in the manifest and used for all future
+installations **without prompting**.
+
+### Manifest Format Extension
+
+The manifest includes two new fields to track the selected location:
+
+```json
+{
+  "version": "1.0.0",
+  "selectedLocation": "local",
+  "installPath": "/Users/user/project/.cursor",
+  "installedAt": "2026-01-31T12:00:00.000Z",
+  "submoduleGitHash": "abc123...",
+  "submoduleGitTag": "v1.2.3",
+  "files": {
+    "agents/planner.md": {
+      "source": "everything-claude-code/agents/planner.md",
+      "installedAt": "2026-01-31T12:00:00.000Z",
+      "checksum": "sha256-hash"
+    }
+  }
+}
+```
+
+**New fields:**
+
+- `selectedLocation`: `"local"` or `"home"` - user's choice
+- `installPath`: Absolute path to the installation directory
+
+### Manifest Location
+
+The manifest is stored in the same directory as the installed files:
+
+- **local**: `{project}/.cursor/.everything-cursor-manifest.json`
+- **home**: `~/.cursor/.everything-cursor-manifest.json`
+
+### Location Priority
+
+When loading an existing manifest, the script checks both locations with
+priority:
+
+1. **Local** (`{project}/.cursor/`)
+2. **Home** (`~/.cursor/`)
+
+The first manifest found is used.
+
+### Changing Installation Location
+
+To change the installation location:
+
+1. Run `pnpm cursor-uninstall` to remove current installation
+2. Run `pnpm cursor-install` - the location prompt will appear again
+3. Select the desired new location
+
+### Use Cases
+
+**Local Installation** (project-specific):
+
+- Project has unique configuration needs
+- Different settings per project
+- Settings tracked in project git repository (optional)
+
+**Home Installation** (global):
+
+- Share settings across all projects
+- Consistent development environment
+- Single source of truth for all coding
+
+### Rollback Support
+
+The `--rollback` flag works with both locations:
+
+```bash
+pnpm cursor-install --rollback
+```
+
+The script automatically:
+
+1. Checks local directory for backup manifest
+2. Falls back to home directory if not found
+3. Restores files to the location specified in the backup manifest
+
+### Example Output
+
+**First Installation (prompt shown):**
+
+```
+📦 Installing everything-cursor...
+
+📍 Select installation location:
+  1) local  - Project local (.cursor/)
+  2) home   - Home directory (~/.cursor/)
+  3) cancel - Cancel installation
+
+Enter your choice (1-3): 2
+
+🔄 Updating: initial → v1.2.3
+📍 Installing to: home (/Users/user/.cursor)
+
+Processing .md files:
+  agents/
+    ✓ planner.md (added)
+...
+✅ Installation complete!
+  Submodule version: v1.2.3 (def5678)
+  Installed to: home
+```
+
+**Subsequent Installation (no prompt):**
+
+```
+📦 Installing everything-cursor...
+Using saved location: home
+✓ Already up to date
+  Submodule version: v1.2.3 (def5678)
+  Location: home
+```
+
+### Testing
+
+Additional test cases for home directory installation:
+
+1. **Home installation (first time)**
+   - Prompt is displayed
+   - `home` selected → files installed to `~/.cursor/`
+   - Manifest saved with `selectedLocation: "home"`
+
+2. **Subsequent installation (location remembered)**
+   - No prompt displayed
+   - Files installed to saved location
+   - "Using saved location: X" message shown
+
+3. **Location change**
+   - Uninstall removes files and manifest
+   - Reinstall shows prompt again
+   - New location can be selected
+
+4. **Manifest priority**
+   - If both local and home manifests exist
+   - Local takes priority
+   - Warning message shown

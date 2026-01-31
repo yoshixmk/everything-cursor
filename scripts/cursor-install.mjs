@@ -16,6 +16,8 @@ import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import crypto from "node:crypto";
+import os from "node:os";
+import readline from "node:readline";
 import { execSync } from "node:child_process";
 
 // ANSI color codes for terminal output
@@ -44,7 +46,8 @@ const color = {
 // Configuration
 const REPO_ROOT = process.cwd();
 const SUBMODULE_PATH = path.join(REPO_ROOT, "everything-claude-code");
-const CURSOR_DIR = path.join(REPO_ROOT, ".cursor");
+const CURSOR_DIR_LOCAL = path.join(REPO_ROOT, ".cursor");
+const CURSOR_DIR_HOME = path.join(os.homedir(), ".cursor");
 const MANIFEST_FILE = ".everything-cursor-manifest.json";
 const MANIFEST_BACKUP_FILE = ".everything-cursor-manifest.backup.json";
 const DIRS_TO_COPY = ["agents", "skills", "commands", "rules"];
@@ -61,21 +64,23 @@ const stats = {
 const isRollback = process.argv.includes("--rollback");
 
 // Main execution
-try {
-  if (isRollback) {
-    performRollback();
-  } else {
-    installWithPreservation();
+(async () => {
+  try {
+    if (isRollback) {
+      performRollback();
+    } else {
+      await installWithPreservation();
+    }
+  } catch (error) {
+    console.error(color.red(`\n✗ Fatal error: ${error.message}`));
+    process.exit(1);
   }
-} catch (error) {
-  console.error(color.red(`\n✗ Fatal error: ${error.message}`));
-  process.exit(1);
-}
+})();
 
 /**
  * Main installation function with user file preservation
  */
-function installWithPreservation() {
+async function installWithPreservation() {
   console.log(color.blue("📦 Installing everything-cursor..."));
 
   // Validate submodule
@@ -85,34 +90,58 @@ function installWithPreservation() {
   const currentHash = getGitHash();
   const currentTag = getGitTag();
 
-  // Load previous manifest
-  const manifest = loadManifest();
+  // Load previous manifest (from either local or home)
+  const { manifest, manifestPath: _existingManifestPath } = loadManifest();
+
+  let selectedLocation;
+
+  if (manifest && manifest.selectedLocation) {
+    // 既存のマニフェストから選択を復元
+    selectedLocation = manifest.selectedLocation;
+    console.log(color.blue(`Using saved location: ${selectedLocation}`));
+  } else {
+    // 初回実行: ユーザーに選択を促す
+    selectedLocation = await promptInstallLocation();
+  }
+
+  // インストールディレクトリ決定
+  const installDir = getInstallDir(selectedLocation);
+  const manifestPath = getManifestPath(selectedLocation);
 
   // Check if update is needed
   if (manifest && manifest.submoduleGitHash === currentHash) {
     const version = manifest.submoduleGitTag || currentHash.slice(0, 7);
     console.log(color.green("✓ Already up to date"));
     console.log(color.blue(`  Submodule version: ${version}`));
+    console.log(color.blue(`  Location: ${selectedLocation}`));
     process.exit(0);
   }
 
   // Display update information
   const oldVersion = manifest?.submoduleGitTag ||
-    manifest?.submoduleGitHash?.slice(0, 7) || "initial";
+    manifest?.submoduleGitHash?.slice(0, 7) ||
+    "initial";
   const newVersion = currentTag || currentHash.slice(0, 7);
-  console.log(color.cyan(`🔄 Updating: ${oldVersion} → ${newVersion}\n`));
+  console.log(color.cyan(`🔄 Updating: ${oldVersion} → ${newVersion}`));
+  console.log(
+    color.cyan(`📍 Installing to: ${selectedLocation} (${installDir})\n`),
+  );
 
   // Backup current manifest
-  backupManifest(manifest);
+  if (manifest) {
+    backupManifest(manifest, installDir);
+  }
 
-  // Create .cursor directory if needed
-  if (!fs.existsSync(CURSOR_DIR)) {
-    fs.mkdirSync(CURSOR_DIR, { recursive: true });
+  // Create install directory if needed
+  if (!fs.existsSync(installDir)) {
+    fs.mkdirSync(installDir, { recursive: true });
   }
 
   // Create new manifest
   const newManifest = {
     version: "1.0.0",
+    selectedLocation: selectedLocation,
+    installPath: installDir,
     installedAt: new Date().toISOString(),
     submoduleGitHash: currentHash,
     submoduleGitTag: currentTag || undefined,
@@ -127,7 +156,7 @@ function installWithPreservation() {
     // Process each directory
     for (const dir of DIRS_TO_COPY) {
       const sourceDir = path.join(SUBMODULE_PATH, dir);
-      const destDir = path.join(CURSOR_DIR, dir);
+      const destDir = path.join(installDir, dir);
 
       if (!fs.existsSync(sourceDir)) {
         continue;
@@ -146,7 +175,7 @@ function installWithPreservation() {
         const relativePath = path.relative(sourceDir, file);
         const destPath = validatePath(
           path.join(destDir, relativePath),
-          CURSOR_DIR,
+          installDir,
         );
         const manifestKey = `${dir}/${relativePath}`;
 
@@ -176,7 +205,7 @@ function installWithPreservation() {
         }
       }
 
-      // Check for user files (exist in .cursor but not in submodule)
+      // Check for user files (exist in install dir but not in submodule)
       if (fs.existsSync(destDir)) {
         const existingFiles = getMdFiles(destDir);
         for (const existingFile of existingFiles) {
@@ -200,7 +229,7 @@ function installWithPreservation() {
 
       for (const [manifestKey, _fileInfo] of Object.entries(manifest.files)) {
         if (!newManifest.files[manifestKey]) {
-          const filePath = path.join(CURSOR_DIR, manifestKey);
+          const filePath = path.join(installDir, manifestKey);
           if (fs.existsSync(filePath)) {
             fs.unlinkSync(filePath);
             console.log(
@@ -220,10 +249,10 @@ function installWithPreservation() {
     }
 
     // Save new manifest
-    saveManifest(newManifest);
+    saveManifest(newManifest, manifestPath);
 
     // Display summary
-    displaySummary(newVersion, currentHash);
+    displaySummary(newVersion, currentHash, selectedLocation);
   } catch (error) {
     console.error(color.red("\n✗ Installation failed"));
     console.error(`  ${error.message}`);
@@ -235,7 +264,7 @@ function installWithPreservation() {
         if (file.isNew && fs.existsSync(file.path)) {
           fs.unlinkSync(file.path);
           console.log(
-            color.yellow(`  ✓ Removed ${path.relative(CURSOR_DIR, file.path)}`),
+            color.yellow(`  ✓ Removed ${path.relative(installDir, file.path)}`),
           );
         }
       } catch (_e) {
@@ -244,7 +273,7 @@ function installWithPreservation() {
     }
 
     // Restore previous manifest
-    restoreManifest();
+    restoreManifest(installDir);
 
     console.log(color.green("✓ Rollback complete"));
     throw error;
@@ -257,8 +286,15 @@ function installWithPreservation() {
 function performRollback() {
   console.log(color.cyan("⟳ Rolling back to previous installation...\n"));
 
-  // Load backup manifest
-  const backupPath = path.join(CURSOR_DIR, MANIFEST_BACKUP_FILE);
+  // バックアップマニフェスト読み込み（local優先、次にhome）
+  let backupPath = path.join(CURSOR_DIR_LOCAL, MANIFEST_BACKUP_FILE);
+  let installDir = CURSOR_DIR_LOCAL;
+
+  if (!fs.existsSync(backupPath)) {
+    backupPath = path.join(CURSOR_DIR_HOME, MANIFEST_BACKUP_FILE);
+    installDir = CURSOR_DIR_HOME;
+  }
+
   if (!fs.existsSync(backupPath)) {
     console.error(color.red("✗ No backup found"));
     console.error("  Cannot rollback without backup manifest");
@@ -266,7 +302,10 @@ function performRollback() {
   }
 
   const backupManifest = JSON.parse(fs.readFileSync(backupPath, "utf-8"));
-  const currentManifest = loadManifest();
+  const currentManifestPath = path.join(installDir, MANIFEST_FILE);
+  const currentManifest = fs.existsSync(currentManifestPath)
+    ? JSON.parse(fs.readFileSync(currentManifestPath, "utf-8"))
+    : null;
 
   // Display version information
   const currentVersion = currentManifest?.submoduleGitTag ||
@@ -275,13 +314,16 @@ function performRollback() {
     backupManifest.submoduleGitHash?.slice(0, 7) || "unknown";
 
   console.log(color.blue(`  Current: ${currentVersion}`));
-  console.log(color.blue(`  Rollback to: ${backupVersion}\n`));
+  console.log(color.blue(`  Rollback to: ${backupVersion}`));
+  console.log(
+    color.blue(`  Location: ${backupManifest.selectedLocation || "local"}\n`),
+  );
 
   // Remove files not in backup
-  if (currentManifest) {
+  if (currentManifest && currentManifest.files) {
     for (const [key] of Object.entries(currentManifest.files)) {
       if (!backupManifest.files[key]) {
-        const filePath = path.join(CURSOR_DIR, key);
+        const filePath = path.join(installDir, key);
         if (fs.existsSync(filePath)) {
           fs.unlinkSync(filePath);
           console.log(color.yellow(`  ✗ Removed ${key}`));
@@ -293,7 +335,7 @@ function performRollback() {
   // Restore files from backup manifest
   for (const [key, fileInfo] of Object.entries(backupManifest.files)) {
     const srcPath = path.join(REPO_ROOT, fileInfo.source);
-    const destPath = path.join(CURSOR_DIR, key);
+    const destPath = path.join(installDir, key);
 
     if (fs.existsSync(srcPath)) {
       fs.mkdirSync(path.dirname(destPath), { recursive: true });
@@ -305,10 +347,69 @@ function performRollback() {
   }
 
   // Restore backup manifest as current
-  restoreManifest();
+  fs.copyFileSync(backupPath, currentManifestPath);
+  console.log(color.green("  ✓ Manifest restored"));
 
   console.log(color.green("\n✅ Rollback complete!"));
   console.log(color.blue(`  Version: ${backupVersion}`));
+}
+
+/**
+ * Prompt user to select installation location
+ * @returns {Promise<"local" | "home">}
+ */
+async function promptInstallLocation() {
+  console.log(color.cyan("\n📍 Select installation location:"));
+  console.log("  1) local  - Project local (.cursor/)");
+  console.log("  2) home   - Home directory (~/.cursor/)");
+  console.log("  3) cancel - Cancel installation\n");
+
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  const answer = await new Promise((resolve) => {
+    rl.question("Enter your choice (1-3): ", (input) => {
+      rl.close();
+      resolve(input);
+    });
+  });
+
+  switch (answer.trim()) {
+    case "1":
+      return "local";
+    case "2":
+      return "home";
+    case "3":
+      console.log(color.gray("Installation cancelled"));
+      process.exit(0);
+      break; // eslint-disable-line no-unreachable
+    default:
+      console.log(color.red("Invalid choice, please try again"));
+      return promptInstallLocation(); // 再帰的に再試行
+  }
+}
+
+/**
+ * Get manifest path based on selected location
+ * @param {"local" | "home"} selectedLocation
+ * @returns {string}
+ */
+function getManifestPath(selectedLocation) {
+  const baseDir = selectedLocation === "local"
+    ? CURSOR_DIR_LOCAL
+    : CURSOR_DIR_HOME;
+  return path.join(baseDir, MANIFEST_FILE);
+}
+
+/**
+ * Get install directory based on selected location
+ * @param {"local" | "home"} selectedLocation
+ * @returns {string}
+ */
+function getInstallDir(selectedLocation) {
+  return selectedLocation === "local" ? CURSOR_DIR_LOCAL : CURSOR_DIR_HOME;
 }
 
 /**
@@ -428,24 +529,56 @@ function calculateChecksum(filePath) {
 }
 
 /**
- * Load manifest file
+ * Load manifest from either local or home directory
+ * Priority: local > home
+ * @returns {{manifest: object | null, manifestPath: string | null}}
  */
 function loadManifest() {
-  try {
-    const manifestPath = path.join(CURSOR_DIR, MANIFEST_FILE);
-    if (!fs.existsSync(manifestPath)) {
-      return null;
+  // まずローカルを確認
+  let manifestPath = path.join(CURSOR_DIR_LOCAL, MANIFEST_FILE);
+  if (fs.existsSync(manifestPath)) {
+    const manifest = loadManifestFromPath(manifestPath);
+    if (manifest) {
+      return { manifest, manifestPath };
     }
+  }
 
+  // 次にホームを確認
+  manifestPath = path.join(CURSOR_DIR_HOME, MANIFEST_FILE);
+  if (fs.existsSync(manifestPath)) {
+    const manifest = loadManifestFromPath(manifestPath);
+    if (manifest) {
+      return { manifest, manifestPath };
+    }
+  }
+
+  return { manifest: null, manifestPath: null };
+}
+
+/**
+ * Load and validate manifest from specific path
+ */
+function loadManifestFromPath(manifestPath) {
+  try {
     const content = fs.readFileSync(manifestPath, "utf-8");
     const manifest = JSON.parse(content);
 
-    // Validate manifest structure
+    // 基本構造の検証
     if (!manifest.version || typeof manifest.files !== "object") {
       throw new Error("Invalid manifest structure");
     }
 
-    // Validate git hash format (40 hex chars)
+    // selectedLocationフィールドの検証
+    if (
+      manifest.selectedLocation &&
+      !["local", "home"].includes(manifest.selectedLocation)
+    ) {
+      throw new Error(
+        `Invalid selectedLocation: ${manifest.selectedLocation}`,
+      );
+    }
+
+    // Git hashの検証
     if (
       manifest.submoduleGitHash &&
       !/^[a-f0-9]{40}$/i.test(manifest.submoduleGitHash)
@@ -454,30 +587,29 @@ function loadManifest() {
     }
 
     return manifest;
-  } catch (_error) {
-    console.warn(color.yellow("⚠ Manifest file is corrupted or invalid"));
-    console.warn("  Treating as fresh installation");
+  } catch (error) {
+    console.warn(color.yellow("⚠ Manifest validation failed"));
+    console.warn(`  ${error.message}`);
     return null;
   }
 }
 
 /**
- * Save manifest file
+ * Save manifest to specified path
  */
-function saveManifest(manifest) {
-  const manifestPath = path.join(CURSOR_DIR, MANIFEST_FILE);
+function saveManifest(manifest, manifestPath) {
   fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
 }
 
 /**
- * Backup current manifest
+ * Backup manifest in the same directory
  */
-function backupManifest(manifest) {
+function backupManifest(manifest, installDir) {
   if (!manifest) {
     return;
   }
 
-  const backupPath = path.join(CURSOR_DIR, MANIFEST_BACKUP_FILE);
+  const backupPath = path.join(installDir, MANIFEST_BACKUP_FILE);
 
   try {
     fs.writeFileSync(backupPath, JSON.stringify(manifest, null, 2));
@@ -490,9 +622,9 @@ function backupManifest(manifest) {
 /**
  * Restore manifest from backup
  */
-function restoreManifest() {
-  const backupPath = path.join(CURSOR_DIR, MANIFEST_BACKUP_FILE);
-  const manifestPath = path.join(CURSOR_DIR, MANIFEST_FILE);
+function restoreManifest(installDir) {
+  const backupPath = path.join(installDir, MANIFEST_BACKUP_FILE);
+  const manifestPath = path.join(installDir, MANIFEST_FILE);
 
   if (fs.existsSync(backupPath)) {
     fs.copyFileSync(backupPath, manifestPath);
@@ -503,7 +635,7 @@ function restoreManifest() {
 /**
  * Display installation summary
  */
-function displaySummary(version, hash) {
+function displaySummary(version, hash, selectedLocation) {
   console.log(color.cyan("\nSummary:"));
   console.log("━".repeat(40));
 
@@ -525,4 +657,5 @@ function displaySummary(version, hash) {
   console.log(
     color.blue(`  Submodule version: ${version} (${hash.slice(0, 7)})`),
   );
+  console.log(color.blue(`  Installed to: ${selectedLocation}`));
 }

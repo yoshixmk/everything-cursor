@@ -24,13 +24,30 @@ git submodule update --init
 pnpm install
 ```
 
-This will automatically run the installation script and copy `.md` files from
-the submodule to `.cursor/`:
+On **first run**, you'll be prompted to choose an installation location:
+
+```
+📍 Select installation location:
+  1) local  - Project local (.cursor/)
+  2) home   - Home directory (~/.cursor/)
+  3) cancel - Cancel installation
+
+Enter your choice (1-3):
+```
+
+- **local**: Installs to project's `.cursor/` directory (project-specific
+  settings)
+- **home**: Installs to `~/.cursor/` directory (shared across all projects)
+
+The script will copy `.md` files from the submodule:
 
 - `agents/*.md` - AI agent configurations
 - `skills/**/*.md` - Skill definitions
 - `commands/*.md` - Custom commands
 - `rules/*.md` - Coding rules and guidelines
+
+**Your choice is remembered** - future runs will automatically use the same
+location without prompting.
 
 **Note**: Only `.md` (Markdown) files are copied. Your custom files are
 automatically preserved.
@@ -51,10 +68,22 @@ removed during uninstallation.
 
 ## Structure
 
-After installation, your `.cursor/` directory will contain:
+After installation, your chosen directory will contain:
+
+**If installed to local** (project-specific):
 
 ```
-.cursor/
+{project}/.cursor/
+├── agents/        # AI agent configurations (planner.md, etc.)
+├── skills/        # Skills like tdd-workflow/
+├── commands/      # Custom commands (tdd.md, etc.)
+└── rules/         # Coding rules (security.md, etc.)
+```
+
+**If installed to home** (shared across projects):
+
+```
+~/.cursor/
 ├── agents/        # AI agent configurations (planner.md, etc.)
 ├── skills/        # Skills like tdd-workflow/
 ├── commands/      # Custom commands (tdd.md, etc.)
@@ -65,14 +94,17 @@ After installation, your `.cursor/` directory will contain:
 
 ### Adding Your Own Files
 
-You can safely add your own custom files to any `.cursor/` directory. The
+You can safely add your own custom files to your install directory. The
 installation script will **never delete** files that you create.
 
 **Example**:
 
 ```bash
-# Create your custom agent
+# If installed to local
 echo "# My Custom Agent" > .cursor/agents/my-agent.md
+
+# If installed to home
+echo "# My Custom Agent" > ~/.cursor/agents/my-agent.md
 
 # This file will be preserved during updates
 pnpm cursor-install
@@ -84,6 +116,23 @@ pnpm cursor-install
 - Non-`.md` files are completely ignored by the script
 - Only `.md` files from the submodule are managed
 
+### Changing Installation Location
+
+To change where the settings are installed:
+
+1. Uninstall current settings:
+   ```bash
+   pnpm cursor-uninstall
+   ```
+
+2. Run install again to choose a new location:
+   ```bash
+   pnpm cursor-install
+   ```
+
+The installation prompt will appear again, allowing you to select a different
+location.
+
 ### What Gets Updated
 
 The installation script only manages `.md` files that come from the
@@ -92,7 +141,8 @@ The installation script only manages `.md` files that come from the
 - ✅ Submodule `.md` files are updated when the submodule changes
 - ✅ Your custom `.md` files are preserved
 - ✅ Non-`.md` files are never touched
-- ✅ Files removed from the submodule are automatically removed from `.cursor/`
+- ✅ Files removed from the submodule are automatically removed from your
+  install directory
 
 ## Updating
 
@@ -135,6 +185,8 @@ For detailed technical specifications and implementation details, see:
 
 ## Features
 
+- ✅ **Location Choice**: Install to project-local or home directory
+- ✅ **Location Memory**: Remembers your installation choice for future updates
 - ✅ **Smart Update Detection**: Git hash tracking skips unnecessary
   installations
 - ✅ **User File Preservation**: Your custom files are never deleted
