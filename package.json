@@ -1,6 +1,6 @@
 {
   "name": "everything-cursor",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "description": "Cursor settings created from affaan-m/everything-claude-code",
   "type": "module",
   "scripts": {
@@ -14,6 +14,6 @@
     "everything-claude-code",
     "everything-cursor"
   ],
-  "author": "",
+  "author": "yoshixmk",
   "license": "MIT"
 }
