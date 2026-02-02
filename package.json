@@ -1,6 +1,6 @@
 {
   "name": "everything-cursor",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "Cursor settings created from affaan-m/everything-cursor",
   "type": "module",
   "exports": {

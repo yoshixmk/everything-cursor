@@ -16,7 +16,7 @@ import process from "node:process";
 /**
  * Package metadata
  */
-export const version = "0.0.4";
+export const version = "0.0.5";
 export const name = "@yoshixmk/everything-cursor";
 export const description =
   "Cursor settings created from affaan-m/everything-claude-code";
