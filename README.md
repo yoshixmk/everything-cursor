@@ -13,6 +13,7 @@ Cursor settings created from
 Choose your preferred package manager:
 
 **Deno** (Recommended):
+
 ```bash
 # One-time execution
 deno x jsr:@yoshixmk/everything-cursor/cli install
@@ -25,6 +26,7 @@ everything-cursor install
 ```
 
 **npm**:
+
 ```bash
 # One-time execution
 npx everything-cursor install
@@ -37,6 +39,7 @@ everything-cursor install
 ```
 
 **pnpm**:
+
 ```bash
 # One-time execution
 pnpm dlx everything-cursor install
@@ -67,7 +70,7 @@ installation.
 
 On **first run**, you'll be prompted to choose an installation location:
 
-```
+```txt
 📍 Select installation location:
   1) local  - Project local (.cursor/)
   2) home   - Home directory (~/.cursor/)
@@ -117,7 +120,7 @@ removed during uninstallation.
 
 If you want to integrate everything-cursor into your own tools or automation scripts, you can use the library API.
 
-### Installation
+### Installing the Library
 
 ```bash
 # pnpm
@@ -150,7 +153,7 @@ After installation, your chosen directory will contain:
 
 **If installed to local** (project-specific):
 
-```
+```text
 {project}/.cursor/
 ├── agents/        # AI agent configurations (planner.md, etc.)
 ├── skills/        # Skills like tdd-workflow/
@@ -160,7 +163,7 @@ After installation, your chosen directory will contain:
 
 **If installed to home** (shared across projects):
 
-```
+```text
 ~/.cursor/
 ├── agents/        # AI agent configurations (planner.md, etc.)
 ├── skills/        # Skills like tdd-workflow/
@@ -199,11 +202,13 @@ cursor-install
 To change where the settings are installed:
 
 1. Uninstall current settings:
+
    ```bash
    cursor-uninstall
    ```
 
 2. Run install again to choose a new location:
+
    ```bash
    cursor-install
    ```
@@ -284,20 +289,20 @@ Or if already cloned:
 git submodule update --init
 ```
 
-2. Install dependencies:
+1. Install dependencies:
 
 ```bash
 npm install
 # or: pnpm install
 ```
 
-3. Test the installation locally:
+1. Test the installation locally:
 
 ```bash
 npm run cursor-install
 ```
 
-4. To uninstall:
+1. To uninstall:
 
 ```bash
 npm run cursor-uninstall
