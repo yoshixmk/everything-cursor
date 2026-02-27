@@ -318,7 +318,7 @@ Update the version in `jsr.json`:
 
 ```bash
 # Edit jsr.json to update version
-# Example: "version": "0.0.5"
+# Example: "version": "0.0.7"
 ```
 
 Update the submodule to the latest version:
@@ -331,14 +331,13 @@ git submodule update --remote
 
 ```bash
 git add jsr.json everything-claude-code
-git commit -m "Bump version to 0.0.5"
+git commit -m "Bump version to 0.0.7"
 ```
 
-### 3. Create and push a git tag
+### 3. Create a git tag
 
 ```bash
-git tag v0.0.5
-git push origin v0.0.5
+git tag v0.0.7
 ```
 
 ### 4. Publish to JSR
