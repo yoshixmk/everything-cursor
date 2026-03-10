@@ -6,35 +6,21 @@
  * @module
  */
 
-import { execSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
+import * as crypto from "node:crypto";
+import * as readline from "node:readline";
 import { fileURLToPath } from "node:url";
 import process from "node:process";
 
 /**
  * Package metadata
  */
-export const version = "0.0.7";
+export const version = "0.0.8";
 export const name = "@yoshixmk/everything-cursor";
 export const description =
   "Cursor settings created from affaan-m/everything-claude-code";
-
-/**
- * Installation script paths
- *
- * Use these to reference the installation scripts:
- *
- * @example
- * ```ts
- * import { installScript, uninstallScript } from "@yoshixmk/everything-cursor";
- * console.log(`Install script: ${installScript}`);
- * console.log(`Uninstall script: ${uninstallScript}`);
- * ```
- */
-export const installScript = "./scripts/cursor-install.mjs";
-export const uninstallScript = "./scripts/cursor-uninstall.mjs";
 
 /**
  * Directories managed by the installation scripts
@@ -63,8 +49,6 @@ export interface PackageInfo {
   name: string;
   version: string;
   description: string;
-  installScript: string;
-  uninstallScript: string;
   managedDirectories: readonly string[];
   managedExtension: string;
 }
@@ -136,8 +120,6 @@ export interface InstallStatus {
   location?: "local" | "home";
   manifestPath?: string;
   version?: string;
-  gitHash?: string;
-  gitTag?: string;
   installedAt?: string;
   fileCount?: number;
 }
@@ -150,25 +132,110 @@ export function getPackageInfo(): PackageInfo {
     name,
     version,
     description,
-    installScript,
-    uninstallScript,
     managedDirectories,
     managedExtension,
   };
 }
 
 /**
- * Get the script directory path
+ * Returns the package root URL.
+ * Handles three cases:
+ *   - JSR (https://): base URL is alongside mod.ts
+ *   - npm dist/ (file://): package root is one level up from dist/
+ *   - source (file://): package root is alongside mod.ts
  * @internal
  */
-function getScriptPath(scriptName: string): string {
+function getPackageBaseUrl(): URL {
+  if (!import.meta.url.startsWith("file://")) {
+    // JSR: use the directory containing mod.ts directly
+    return new URL("./", import.meta.url);
+  }
   const moduleDir = path.dirname(fileURLToPath(import.meta.url));
-  // When built to dist/, scripts are in ../scripts/
-  // When running from source, scripts are in ./scripts/
-  const scriptsDir = moduleDir.endsWith("dist")
-    ? path.join(moduleDir, "..", "scripts")
-    : path.join(moduleDir, "scripts");
-  return path.join(scriptsDir, scriptName);
+  // npm build output: dist/mod.js → package root is parent of dist/
+  const rootDir = path.basename(moduleDir) === "dist"
+    ? path.dirname(moduleDir)
+    : moduleDir;
+  return new URL(`file://${rootDir}/`);
+}
+
+/**
+ * Read a source file from the package, working for both local (file://) and JSR (https://)
+ * @internal
+ */
+async function readSourceFile(relativePath: string): Promise<string> {
+  const base = getPackageBaseUrl();
+  const url = new URL(relativePath, base);
+
+  if (url.protocol === "file:") {
+    return fs.readFileSync(fileURLToPath(url), "utf-8");
+  }
+  const resp = await fetch(url.href);
+  if (!resp.ok) {
+    throw new Error(
+      `Failed to fetch ${url.href}: ${resp.status} ${resp.statusText}`,
+    );
+  }
+  return await resp.text();
+}
+
+/**
+ * Load the published file list from file-list.json
+ * @internal
+ */
+async function loadFileList(): Promise<string[]> {
+  const raw = await readSourceFile("file-list.json");
+  return JSON.parse(raw) as string[];
+}
+
+/**
+ * Prompt the user to select an installation location
+ * @internal
+ */
+async function promptInstallLocation(): Promise<"local" | "home"> {
+  const envLocation = process.env.CURSOR_INSTALL_LOCATION;
+  if (envLocation === "local" || envLocation === "home") {
+    console.log(`📍 Using ${envLocation} installation (from environment variable)`);
+    return envLocation;
+  }
+
+  console.log("\n📍 Select installation location:");
+  console.log("  1) local  - Project local (.cursor/)");
+  console.log("  2) home   - Home directory (~/.cursor/)");
+  console.log("  3) cancel - Cancel installation\n");
+
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  const answer = await new Promise<string>((resolve) => {
+    rl.question("Enter your choice (1-3): ", (input) => {
+      rl.close();
+      resolve(input);
+    });
+  });
+
+  switch (answer.trim()) {
+    case "1":
+      return "local";
+    case "2":
+      return "home";
+    case "3":
+      console.log("Installation cancelled");
+      process.exit(0);
+      break;
+    default:
+      console.log("Invalid choice, please try again");
+      return promptInstallLocation();
+  }
+}
+
+/**
+ * Calculate SHA-256 checksum of a string
+ * @internal
+ */
+function calculateChecksumFromString(content: string): string {
+  return crypto.createHash("sha256").update(content, "utf-8").digest("hex");
 }
 
 /**
@@ -189,34 +256,106 @@ function getScriptPath(scriptName: string): string {
  * ```
  */
 export async function install(options: InstallOptions = {}): Promise<void> {
-  // Keep async for API compatibility
-  await Promise.resolve();
-
   const { location = "ask", silent = false, cwd = process.cwd() } = options;
 
-  const scriptPath = getScriptPath("cursor-install.mjs");
-  const env = { ...process.env };
+  const log = (...args: unknown[]) => {
+    if (!silent) console.log(...args);
+  };
 
-  // Set location via environment variable if specified
-  if (location !== "ask") {
-    env.CURSOR_INSTALL_LOCATION = location;
+  log("📦 Installing everything-cursor...");
+
+  const selectedLocation: "local" | "home" = location === "ask"
+    ? await promptInstallLocation()
+    : location;
+
+  const installDir = selectedLocation === "local"
+    ? path.join(cwd, ".cursor")
+    : path.join(os.homedir(), ".cursor");
+
+  const manifestPath = path.join(installDir, MANIFEST_FILE);
+
+  // Load file list (from file system or JSR fetch)
+  const fileList = await loadFileList();
+
+  // Load existing manifest to check if update is needed
+  const existingManifest = loadManifestFromPath(manifestPath);
+  if (existingManifest?.version === version) {
+    log("✓ Already up to date");
+    log(`  Version: ${version}`);
+    log(`  Location: ${selectedLocation}`);
+    return;
   }
 
-  try {
-    const stdio = silent ? "pipe" : "inherit";
-    execSync(`node "${scriptPath}"`, {
-      cwd,
-      env,
-      stdio,
-      encoding: "utf-8",
-    });
-  } catch (error) {
-    throw new Error(
-      `Installation failed: ${
-        error instanceof Error ? error.message : String(error)
-      }`,
-    );
+  log(`📍 Installing to: ${selectedLocation} (${installDir})\n`);
+
+  if (!fs.existsSync(installDir)) {
+    fs.mkdirSync(installDir, { recursive: true });
   }
+
+  const newManifest: {
+    version: string;
+    selectedLocation: string;
+    installPath: string;
+    installedAt: string;
+    files: Record<string, ManifestFileInfo>;
+  } = {
+    version,
+    selectedLocation,
+    installPath: installDir,
+    installedAt: new Date().toISOString(),
+    files: {},
+  };
+
+  let added = 0;
+  let updated = 0;
+
+  log("Processing .md files:");
+
+  for (const relativePath of fileList) {
+    const destPath = path.join(installDir, relativePath);
+    const existed = fs.existsSync(destPath);
+
+    const content = await readSourceFile(`./everything-claude-code/${relativePath}`);
+
+    fs.mkdirSync(path.dirname(destPath), { recursive: true });
+    fs.writeFileSync(destPath, content, "utf-8");
+
+    newManifest.files[relativePath] = {
+      installedAt: new Date().toISOString(),
+      checksum: calculateChecksumFromString(content),
+    };
+
+    if (existed) {
+      log(`  ✓ ${relativePath} (updated)`);
+      updated++;
+    } else {
+      log(`  ✓ ${relativePath} (added)`);
+      added++;
+    }
+  }
+
+  // Remove files that were previously installed but are no longer in the file list
+  if (existingManifest?.files) {
+    for (const key of Object.keys(existingManifest.files)) {
+      if (!newManifest.files[key]) {
+        const filePath = path.join(installDir, key);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+          log(`  ✗ ${key} (removed)`);
+        }
+      }
+    }
+  }
+
+  fs.writeFileSync(manifestPath, JSON.stringify(newManifest, null, 2));
+
+  log("\n" + "─".repeat(40));
+  if (updated > 0) log(`  ${updated} file(s) updated`);
+  if (added > 0) log(`  ${added} file(s) added`);
+  log("─".repeat(40));
+  log("✅ Installation complete!");
+  log(`  Version: ${version}`);
+  log(`  Installed to: ${selectedLocation}`);
 }
 
 /**
@@ -234,27 +373,54 @@ export async function install(options: InstallOptions = {}): Promise<void> {
  * ```
  */
 export async function uninstall(options: UninstallOptions = {}): Promise<void> {
-  // Keep async for API compatibility
   await Promise.resolve();
 
   const { silent = false, cwd = process.cwd() } = options;
 
-  const scriptPath = getScriptPath("cursor-uninstall.mjs");
+  const log = (...args: unknown[]) => {
+    if (!silent) console.log(...args);
+  };
 
-  try {
-    const stdio = silent ? "pipe" : "inherit";
-    execSync(`node "${scriptPath}"`, {
-      cwd,
-      stdio,
-      encoding: "utf-8",
-    });
-  } catch (error) {
-    throw new Error(
-      `Uninstallation failed: ${
-        error instanceof Error ? error.message : String(error)
-      }`,
-    );
+  // Check local first, then home
+  const localManifestPath = path.join(cwd, ".cursor", MANIFEST_FILE);
+  const homeManifestPath = path.join(os.homedir(), ".cursor", MANIFEST_FILE);
+
+  let manifestPath: string;
+  let installDir: string;
+
+  if (fs.existsSync(localManifestPath)) {
+    manifestPath = localManifestPath;
+    installDir = path.join(cwd, ".cursor");
+  } else if (fs.existsSync(homeManifestPath)) {
+    manifestPath = homeManifestPath;
+    installDir = path.join(os.homedir(), ".cursor");
+  } else {
+    console.error("✗ everything-cursor is not installed");
+    process.exit(1);
   }
+
+  const manifest = loadManifestFromPath(manifestPath);
+  if (!manifest?.files) {
+    console.error("✗ Invalid or missing manifest");
+    process.exit(1);
+  }
+
+  log("🗑️  Uninstalling everything-cursor...");
+
+  let removed = 0;
+  for (const key of Object.keys(manifest.files)) {
+    const filePath = path.join(installDir, key);
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+      log(`  ✗ ${key}`);
+      removed++;
+    }
+  }
+
+  fs.unlinkSync(manifestPath);
+
+  log("\n✅ Uninstallation complete!");
+  log(`  ${removed} file(s) removed`);
 }
 
 /**
@@ -272,13 +438,11 @@ export async function uninstall(options: UninstallOptions = {}): Promise<void> {
  * ```
  */
 export function isInstalled(cwd: string = process.cwd()): InstallStatus {
-  // Check local .cursor directory first
   const localManifestPath = path.join(cwd, ".cursor", MANIFEST_FILE);
   if (fs.existsSync(localManifestPath)) {
     return parseManifestStatus(localManifestPath, "local");
   }
 
-  // Check home .cursor directory
   const homeManifestPath = path.join(os.homedir(), ".cursor", MANIFEST_FILE);
   if (fs.existsSync(homeManifestPath)) {
     return parseManifestStatus(homeManifestPath, "home");
@@ -301,15 +465,31 @@ function parseManifestStatus(
       isInstalled: true,
       location,
       manifestPath,
-      version: manifest.submoduleGitTag ||
-        manifest.submoduleGitHash?.slice(0, 7),
-      gitHash: manifest.submoduleGitHash,
-      gitTag: manifest.submoduleGitTag,
+      version: manifest.version,
       installedAt: manifest.installedAt,
       fileCount: Object.keys(manifest.files || {}).length,
     };
   } catch {
     return { isInstalled: false };
+  }
+}
+
+/**
+ * Load and validate manifest from a specific path
+ * @internal
+ */
+function loadManifestFromPath(manifestPath: string): {
+  version: string;
+  files: Record<string, ManifestFileInfo>;
+} | null {
+  if (!fs.existsSync(manifestPath)) return null;
+  try {
+    const content = fs.readFileSync(manifestPath, "utf-8");
+    const manifest = JSON.parse(content);
+    if (!manifest.version || typeof manifest.files !== "object") return null;
+    return manifest;
+  } catch {
+    return null;
   }
 }
 

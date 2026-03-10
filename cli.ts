@@ -52,33 +52,6 @@ if (args[0] === "--help" || args[0] === "-h" || args[0] === "help") {
   exit(0);
 }
 
-// Check if running from JSR
-const isJsrInstall = import.meta.url.includes("jsr.io") ||
-  import.meta.url.includes("deno.land");
-
-if (isJsrInstall && !isDeno) {
-  console.error("⚠️  Installation from JSR is not yet supported.");
-  console.error("");
-  console.error("Please use one of these methods instead:");
-  console.error("");
-  console.error("Option 1: Clone the repository");
-  console.error(
-    "  git clone https://github.com/yoshixmk/everything-cursor.git",
-  );
-  console.error("  cd everything-cursor");
-  console.error("  node scripts/cursor-install.mjs");
-  console.error("");
-  console.error("Option 2: Use the library API in your code");
-  console.error(
-    '  import { install } from "jsr:@yoshixmk/everything-cursor";',
-  );
-  console.error('  await install({ location: "local" });');
-  console.error("");
-  console.error("For more information, visit:");
-  console.error("  https://github.com/yoshixmk/everything-cursor");
-  exit(1);
-}
-
 // Determine which command to run
 try {
   if (commandName.includes("cursor-install") || args[0] === "install") {

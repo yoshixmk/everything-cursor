@@ -1,6 +1,6 @@
 {
   "name": "everything-cursor",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "description": "Cursor settings created from affaan-m/everything-cursor",
   "type": "module",
   "exports": {
@@ -17,17 +17,18 @@
     "everything-cursor": "./dist/cli.js"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "npm run generate && tsc",
+    "generate": "node scripts/generate-file-list.mjs",
     "prepublishOnly": "npm run build",
-    "dev:install": "node scripts/cursor-install.mjs",
-    "dev:uninstall": "node scripts/cursor-uninstall.mjs"
+    "dev:install": "node -e \"import('./dist/mod.js').then(m => m.install())\"",
+    "dev:uninstall": "node -e \"import('./dist/mod.js').then(m => m.uninstall())\""
   },
   "files": [
     "dist/**/*.js",
     "dist/**/*.d.ts",
     "dist/**/*.d.ts.map",
     "dist/**/*.js.map",
-    "scripts/*.mjs",
+    "file-list.json",
     "everything-claude-code/agents/",
     "everything-claude-code/skills/",
     "everything-claude-code/commands/",

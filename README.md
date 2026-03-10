@@ -100,14 +100,28 @@ automatically preserved.
 
 To remove the installed Cursor settings:
 
+**Deno**:
+
 ```bash
-everything-cursor uninstall
+deno x jsr:@yoshixmk/everything-cursor/cli uninstall
 ```
 
-Or from the repository:
+**npm**:
 
 ```bash
-node scripts/cursor-uninstall.mjs
+npx everything-cursor uninstall
+```
+
+**pnpm**:
+
+```bash
+pnpm dlx everything-cursor uninstall
+```
+
+Or if installed globally:
+
+```bash
+everything-cursor uninstall
 ```
 
 This will remove only the files that were installed from the submodule (tracked
@@ -318,7 +332,7 @@ Update the version in `jsr.json`:
 
 ```bash
 # Edit jsr.json to update version
-# Example: "version": "0.0.7"
+# Example: "version": "0.0.8"
 ```
 
 Update the submodule to the latest version:
@@ -331,13 +345,13 @@ git submodule update --remote
 
 ```bash
 git add jsr.json everything-claude-code
-git commit -m "Bump version to 0.0.7"
+git commit -m "Bump version to 0.0.8"
 ```
 
 ### 3. Create a git tag
 
 ```bash
-git tag v0.0.7
+git tag v0.0.8
 ```
 
 ### 4. Publish to JSR

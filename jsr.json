@@ -1,6 +1,6 @@
 {
   "name": "@yoshixmk/everything-cursor",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "license": "MIT",
   "exports": {
     ".": "./mod.ts",
@@ -10,7 +10,7 @@
     "include": [
       "mod.ts",
       "cli.ts",
-      "scripts/*.mjs",
+      "file-list.json",
       "everything-claude-code/agents/**/*.md",
       "everything-claude-code/skills/**/*.md",
       "everything-claude-code/commands/**/*.md",
