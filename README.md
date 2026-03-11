@@ -55,12 +55,13 @@ The CLI will prompt you to choose between local (`.cursor/`) or home (`~/.cursor
 
 ### Alternative: From Repository
 
-Clone the repository and run the installation script directly:
+Clone the repository and run the CLI directly:
 
 ```bash
 git clone https://github.com/yoshixmk/everything-cursor.git
 cd everything-cursor
-node scripts/cursor-install.mjs
+git submodule update --init
+deno run --allow-all cli.ts install
 ```
 
 This method gives you full control and allows you to modify the settings before
@@ -254,26 +255,16 @@ everything-cursor install
 
 Note: The `-f` flag forces reinstallation even if already installed.
 
-**Smart Update Detection**: The installation script tracks the git commit hash
-of the submodule. If the submodule hasn't changed, the installation is
-automatically skipped.
+**Smart Update Detection**: The installation script tracks the package version.
+If the same version is already installed, the installation is automatically skipped.
 
 ```bash
 $ everything-cursor install
-📦 Checking everything-cursor...
+📦 Installing everything-cursor...
 ✓ Already up to date
-  Submodule version: v1.2.3 (abc1234)
+  Version: 0.0.8
+  Location: home
 ```
-
-### Rollback to Previous Version
-
-If an update causes issues, you can easily rollback:
-
-```bash
-everything-cursor install --rollback
-```
-
-This restores the previous installation state.
 
 ## Documentation
 
@@ -313,13 +304,13 @@ npm install
 1. Test the installation locally:
 
 ```bash
-npm run cursor-install
+npm run dev:install
 ```
 
 1. To uninstall:
 
 ```bash
-npm run cursor-uninstall
+npm run dev:uninstall
 ```
 
 ## Publishing (For Maintainers)
@@ -328,11 +319,11 @@ To publish a new version:
 
 ### 1. Update version and submodule
 
-Update the version in `jsr.json`:
+Update the version in `jsr.json`, `package.json`, and `mod.ts`:
 
 ```bash
-# Edit jsr.json to update version
-# Example: "version": "0.0.8"
+# Edit version field in jsr.json, package.json, and mod.ts
+# Example: "version": "0.0.9"
 ```
 
 Update the submodule to the latest version:
@@ -341,17 +332,22 @@ Update the submodule to the latest version:
 git submodule update --remote
 ```
 
-### 2. Commit the changes
+### 2. Regenerate file list
+
+After updating the submodule, regenerate `file-list.json`:
 
 ```bash
-git add jsr.json everything-claude-code
-git commit -m "Bump version to 0.0.8"
+node scripts/generate-file-list.mjs
 ```
 
-### 3. Create a git tag
+This file lists all `.md` files included in the package and is required for
+installation via JSR/Deno.
+
+### 3. Commit the changes
 
 ```bash
-git tag v0.0.8
+git add jsr.json package.json mod.ts file-list.json everything-claude-code
+git commit -m "Bump version to 0.0.9"
 ```
 
 ### 4. Publish to JSR
@@ -365,22 +361,19 @@ You will be prompted to authenticate in your browser.
 ### Publishing Notes
 
 - Only `.md` files from `agents/`, `skills/`, `commands/`, and `rules/`
-  directories are included (per `INSTALL_SPEC.md` requirements)
+  directories are included
+- `file-list.json` must be regenerated whenever the submodule is updated
 - Development files (`.sh`, `.py`, `.js`) and other non-Markdown files are
   automatically excluded
 
 ## Features
 
+- ✅ **Cross-runtime**: Works with Deno (JSR) and Node.js (npm/pnpm)
 - ✅ **Location Choice**: Install to project-local or home directory
-- ✅ **Location Memory**: Remembers your installation choice for future updates
-- ✅ **Smart Update Detection**: Git hash tracking skips unnecessary
-  installations
+- ✅ **Smart Update Detection**: Version tracking skips unnecessary installations
 - ✅ **User File Preservation**: Your custom files are never deleted
-- ✅ **Automatic Rollback**: Installation failures are automatically rolled back
-- ✅ **Manual Rollback**: Easy rollback to previous version with `--rollback`
-  flag
 - ✅ **Security**: Path traversal prevention, only processes `.md` files
-- ✅ **Clear Feedback**: Color-coded output with progress indicators
+- ✅ **Clear Feedback**: Output with progress indicators
 
 ## License
 
