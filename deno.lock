@@ -1,0 +1,20 @@
+{
+  "version": "5",
+  "specifiers": {
+    "jsr:@yoshixmk/everything-cursor@*": "0.0.8"
+  },
+  "jsr": {
+    "@yoshixmk/everything-cursor@0.0.8": {
+      "integrity": "3f29a8bfdcbaddb4db7757601a5351e6ff5a91f0e729a740304c9c35dee765ef"
+    }
+  },
+  "workspace": {
+    "packageJson": {
+      "dependencies": [
+        "npm:@types/deno@^2.5.0",
+        "npm:@types/node@18",
+        "npm:typescript@^5.7.0"
+      ]
+    }
+  }
+}
