@@ -1,5 +1,26 @@
 # everything-cursor
 
+> **This repository is archived.**
+>
+> ## Why
+>
+> Agent Skills is an open standard. Skills installed via Claude Code work in
+> Cursor as-is — by design, because both tools share the `~/.claude/` path.
+>
+> In practice, Cursor also reads `~/.claude/plugins/cache/`, which is where
+> `claude-mem` and `everything-claude-code` store their cached skills. This
+> appears to be because Cursor broadly scans the `~/.claude/` directory
+> (the official documentation only explicitly mentions `~/.claude/skills/`).
+>
+> As a result, **installing skills once via Claude Code makes them available in
+> Cursor automatically** — no separate wrapper package needed.
+>
+> ### Sources
+>
+> - [https://www.cursor.com/docs/context/skills](https://www.cursor.com/docs/context/skills) — Cursor official skills documentation
+
+---
+
 [![JSR](https://jsr.io/badges/@yoshixmk/everything-cursor)](https://jsr.io/@yoshixmk/everything-cursor)
 [![JSR Score](https://jsr.io/badges/@yoshixmk/everything-cursor/score)](https://jsr.io/@yoshixmk/everything-cursor)
 
